@@ -35,13 +35,15 @@ Tests can be run with `pytest <http://doc.pytest.org/en/latest/>`_:
 
 .. code:: sh
 
-   Testing started at 13:28 ...
-   ============================= test session starts ==============================
-   platform linux2 -- Python 2.7.12, pytest-3.0.1, py-1.4.31, pluggy-0.3.1
-   rootdir: /home/hbldh/Repos/hitherdither, inifile:
-   collected 0 items
+    hbldh@devbox:~/Repos/hitherdither$ py.test tests
+    ============================= test session starts ==============================
+    platform linux -- Python 3.5.2, pytest-3.0.2, py-1.4.31, pluggy-0.3.1
+    rootdir: /home/hbldh/Repos/hitherdither, inifile: 
+    collected 3 items 
 
-   =========================== 0 passed in 0.00 seconds ===========================
+    tests/test_bayer.py ...
+
+    =========================== 3 passed in 0.06 seconds ===========================
 
 References
 ----------
