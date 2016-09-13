@@ -1,3 +1,5 @@
+hitherdither/data/*.png
+
 # Created by .ignore support plugin (hsz.mobi)
 ### VisualStudio template
 ## Ignore Visual Studio temporary files, build results, and
@@ -387,3 +389,4 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
+hitherdither/data/scenenodither.png
