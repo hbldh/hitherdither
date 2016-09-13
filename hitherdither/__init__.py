@@ -17,7 +17,7 @@ from . import utils
 
 
 # Version information.
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 version = __version__  # backwards compatibility name
 try:
     version_info = [int(x) if x.isdigit() else x for x in
