@@ -114,22 +114,32 @@ class Palette(object):
         """
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(self.render(cc)).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
         return pa_image._makeself(im)
     
-    def create_PIL_png_from_array(self, img_array):
-        """Create a ``P`` PIL image with this palette.
+    def create_PIL_png_from_rgb_array(self, img_array):
+        """Create a ``P`` PIL image from a RGB image with this palette.
 
         Avoids the PIL dithering in favour of our own.
 
         Reference: http://stackoverflow.com/a/29438149
 
-        :param :class:`numpy.ndarray` cc: A ``[M x N]`` array with integer
-            values representing palette colour indices to build image from. 
-        :return: A :class:`PIL.Image.Image` image of mode ``P``.
+        :param :class:`numpy.ndarray` img_array: A ``[M x N x 3]`` uint8
+            array representing RGB colours.
+        :return: A :class:`PIL.Image.Image` image of mode ``P`` with colours
+            available in this palette.
 
         """
+        cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(img_array).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(cc).im.convert("P", 0, pa_image.im)
         return pa_image._makeself(im)
+
+    @staticmethod
+    def hex2rgb(x):
+        return hex2rgb(x)
+
+    @staticmethod
+    def rgb2hex(r,g,b):
+        return rgb2hex(r,g,b)

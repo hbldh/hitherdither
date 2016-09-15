@@ -15,7 +15,6 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
-from PIL import ImagePalette, Image, PngImagePlugin
 
 from hitherdither import data
 from hitherdither.palette import Palette
@@ -23,19 +22,22 @@ from hitherdither.diffusion import error_diffusion_dithering
 from hitherdither.ordered import yliluoma
 import hitherdither.utils
 
+# Fetch the example image and the palette from Yliluoma's page.
 s = data.scene()
 p = Palette(hitherdither.data.palette())
-ip = ImagePalette.ImagePalette(mode="RGB", palette=p.colours.flatten().tolist(), size=16 * 3)
 
-# Render an undithered image.
+# Map raw image to the palette
 closest_colour = p.image_closest_colour(s, order=2)
+# Render the undithered image with only colours in
+# the palette as a RGB numpy array.
 undithered_image = p.render(closest_colour)
+# Create a PIL Image of mode "P" from the palette colour index matrix.
 s_png = p.create_PIL_png_from_closest_colour(closest_colour)
-#s_png.show()
+s_png.show()
 
 print(np.linalg.norm(undithered_image - np.array(s_png.convert("RGB"))))
 
 # Render an Yliluoma algorithm 1 image.
-yliluoma1_image = yliluoma.yliluomas_1_ordered_dithering(s, p, order=8)
-s_png = p.create_PIL_png_from_array(yliluoma1_image)
-s_png.show()
+yliluoma1_image = yliluoma.yliluomas_1_ordered_dithering(
+    s, p, order=8)
+yliluoma1_image.show()
