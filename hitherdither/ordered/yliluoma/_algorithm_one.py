@@ -14,7 +14,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
-from ..bayer import B
+from ..bayer import B, I
 
 # CCIR 601 luminosity
 CCIR_LUMINOSITY = np.array([299.0, 587.0, 114.0])
@@ -26,8 +26,10 @@ def _get_mixing_plan_matrix(palette, order=8, improved_metric=True):
 
     nn = order * order
     for i in range(len(palette)):
-        for j in range(i + 1, len(palette)):
-            for ratio in range(nn):
+        for j in range(i, len(palette)):
+            for ratio in range(0, nn):
+                if i == j and ratio != 0:
+                    break
                 # Determine the two component colors.
                 c_mix = _colour_combine(palette, i, j, ratio / nn)
                 hex_colour = palette.rgb2hex(*c_mix.tolist())
@@ -39,9 +41,10 @@ def _get_mixing_plan_matrix(palette, order=8, improved_metric=True):
                 if improved_metric:
                     luma1 = c1.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
                     luma2 = c2.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
-                    luma_diff = luma1 - luma2
-                    cmpval = (((c1 - c2) * (c1 - c2) * CCIR_LUMINOSITY) /
-                              (255.0 * 1000.0)).sum() * 0.75 + (luma_diff * luma_diff)
+                    luma_diff_squared = (luma1 - luma2) ** 2
+                    c_diff = (((c1 - c2) / 255.0) ** 2)
+                    cmpval = c_diff.dot(CCIR_LUMINOSITY / 1000.0) * 0.75 + luma_diff_squared
+                    cmpval *= (np.abs((ratio / float(nn)) - 0.5) + 0.5)
                     colour_component_distances.append(cmpval)
                 else:
                     colour_component_distances.append(np.linalg.norm(c1 - c2))
@@ -62,6 +65,13 @@ def _colour_combine(palette, i, j, ratio):
 
 def _standard_mixing_error_fcn(
         colour, mixing_matrix, colour_component_distances):
+    """
+
+    :param colour:
+    :param mixing_matrix:
+    :param colour_component_distances:
+    :return:
+    """
     return (np.linalg.norm(
         np.array(colour, 'int') - mixing_matrix, axis=1, ord=2) +
             colour_component_distances * 0.1)
@@ -84,27 +94,38 @@ def _improved_mixing_error_fcn(
     improvement is shown below. We might call this RGBL, for
     luminance-weighted RGB.
 
-    :param :class:`numpy.ndarray` colour:The colour
-    :param :class:`numpy.ndarray` mixing_matrix:
-    :param :class:`numpy.ndarray` colour_component_distances:
+    :param :class:`numpy.ndarray` colour: The colour to estimate error to.
+    :param :class:`numpy.ndarray` mixing_matrix: The rgb
+        values of mixed colours.
+    :param :class:`numpy.ndarray` colour_component_distances: The colour
+        distance of the mixed colours.
     :return: :class:`numpy.ndarray`
 
     """
     colour = np.array(colour, 'int')
-    if luma_mat is not None:
-        luma_mat = (mixing_matrix * CCIR_LUMINOSITY).sum(axis=1) / (255.0 * 1000.0)
+    if luma_mat is None:
+        luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
     luma_colour = colour.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
-    luma_diff = luma_mat - luma_colour
-    diff_colour = colour - mixing_matrix
-    cmpvals = (diff_colour * diff_colour).dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
+    luma_diff_squared = (luma_mat - luma_colour) ** 2
+    diff_colour_squared = ((colour - mixing_matrix) / 255.0) ** 2
+    cmpvals = diff_colour_squared.dot(CCIR_LUMINOSITY) / 1000.0
     cmpvals *= 0.75
-    cmpvals += luma_diff * luma_diff
+    cmpvals += luma_diff_squared
     cmpvals += colour_component_distances * 0.1
     return cmpvals
 
 
 def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True):
-    bayer_matrix = B(order)
+    """A dithering method that weighs in color combinations of palette.
+
+    :param :class:`PIL.Image` image: The image to apply Bayer ordered dithering to.
+    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param int order: The Bayer matrix size to use.
+    :param bool improved_metric: Use the CCIR 601 luminosity metric.
+    :return:  The dithered PIL image of type "P" using the input palette.
+
+    """
+    bayer_matrix = I(order, transposed=True) / 64.0
     ni = np.array(image, 'uint8')
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
@@ -113,10 +134,9 @@ def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True)
         _get_mixing_plan_matrix(palette, improved_metric=improved_metric)
     mixing_matrix = np.array(mixing_matrix, 'int')
     if improved_metric:
-        luma_mat = ((mixing_matrix * CCIR_LUMINOSITY).sum(axis=1) /
-                    (255.0 * 1000.0))
+        luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
 
-    color_matrix = np.zeros(factor_matrix.shape, dtype='uint8')
+    color_matrix = np.zeros(ni.shape[:2], dtype='uint8')
     for x, y in zip(np.nditer(xx), np.nditer(yy)):
         if improved_metric:
             min_index = np.argmin(_improved_mixing_error_fcn(
@@ -128,7 +148,7 @@ def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True)
         closest_mix_colour = mixing_matrix[min_index, :].tolist()
         closest_mix_hexcolour = palette.rgb2hex(*closest_mix_colour)
         plan = colour_map.get(closest_mix_hexcolour)
-        color_matrix[y, x] = (plan[0] if (plan[-1] < factor_matrix[y, x])
-                              else plan[1])
+        color_matrix[y, x] = (plan[1] if (factor_matrix[y, x] < plan[-1])
+                              else plan[0])
 
     return palette.create_PIL_png_from_closest_colour(color_matrix)

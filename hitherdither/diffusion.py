@@ -181,7 +181,8 @@ def error_diffusion_dithering(image, palette, method='floyd-steinberg',
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param str method: The error diffusion map to use.
     :param int order: Metric parameter ``ord`` to send to :method:`numpy.linalg.norm`.
-    :return: The error diffusion dithered image.
+    :return: The error diffusion dithered PIL image of type
+        "P" using the input palette.
 
     """
     ni = np.array(image, 'float')

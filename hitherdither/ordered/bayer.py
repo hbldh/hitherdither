@@ -64,7 +64,8 @@ def bayer_dithering(image, palette, thresholds, order=8):
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
     :param int order: The size of the Bayer matrix.
-    :return:
+    :return:  The Bayer matrix dithered PIL image of type "P"
+        using the input palette.
 
     """
     bayer_matrix = B(order)
@@ -75,4 +76,4 @@ def bayer_dithering(image, palette, thresholds, order=8):
     yy %= order
     factor_threshold_matrix = (np.expand_dims(bayer_matrix[yy, xx], axis=2) * thresholds)
     new_image = ni + factor_threshold_matrix
-    return palette.render(palette.image_closest_colour(new_image))
+    return palette.create_PIL_png_from_rgb_array(new_image)
