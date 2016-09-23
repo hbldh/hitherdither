@@ -8,18 +8,18 @@ algorithm_one
 
 """
 
+from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from __future__ import absolute_import
 
 import numpy as np
-from ..bayer import B, I
 
-# CCIR 601 luminosity
-CCIR_LUMINOSITY = np.array([299.0, 587.0, 114.0])
+from ._utils import color_compare, CCIR_LUMINOSITY
+from ..bayer import I
 
-def _get_mixing_plan_matrix(palette, order=8, improved_metric=True):
+
+def _get_mixing_plan_matrix(palette, order=8):
     mixing_matrix = []
     colours = {}
     colour_component_distances = []
@@ -38,16 +38,8 @@ def _get_mixing_plan_matrix(palette, order=8, improved_metric=True):
 
                 c1 = np.array(palette[i], 'int')
                 c2 = np.array(palette[j], 'int')
-                if improved_metric:
-                    luma1 = c1.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
-                    luma2 = c2.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
-                    luma_diff_squared = (luma1 - luma2) ** 2
-                    c_diff = (((c1 - c2) / 255.0) ** 2)
-                    cmpval = c_diff.dot(CCIR_LUMINOSITY / 1000.0) * 0.75 + luma_diff_squared
-                    cmpval *= (np.abs((ratio / float(nn)) - 0.5) + 0.5)
-                    colour_component_distances.append(cmpval)
-                else:
-                    colour_component_distances.append(np.linalg.norm(c1 - c2))
+                cmpval = color_compare(c1, c2) * 0.1 * (np.abs((ratio / float(nn)) - 0.5) + 0.5)
+                colour_component_distances.append(cmpval)
 
     mixing_matrix = np.array(mixing_matrix)
     colour_component_distances = np.array(colour_component_distances)
@@ -61,20 +53,6 @@ def _get_mixing_plan_matrix(palette, order=8, improved_metric=True):
 def _colour_combine(palette, i, j, ratio):
     c1, c2 = np.array(palette[i], 'int'), np.array(palette[j], 'int')
     return np.array(c1 + ratio * (c2 - c1), 'uint8')
-
-
-def _standard_mixing_error_fcn(
-        colour, mixing_matrix, colour_component_distances):
-    """
-
-    :param colour:
-    :param mixing_matrix:
-    :param colour_component_distances:
-    :return:
-    """
-    return (np.linalg.norm(
-        np.array(colour, 'int') - mixing_matrix, axis=1, ord=2) +
-            colour_component_distances * 0.1)
 
 
 def _improved_mixing_error_fcn(
@@ -111,17 +89,18 @@ def _improved_mixing_error_fcn(
     cmpvals = diff_colour_squared.dot(CCIR_LUMINOSITY) / 1000.0
     cmpvals *= 0.75
     cmpvals += luma_diff_squared
-    cmpvals += colour_component_distances * 0.1
+    cmpvals += colour_component_distances
     return cmpvals
 
 
-def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True):
+def yliluomas_1_ordered_dithering(image, palette, order=8):
     """A dithering method that weighs in color combinations of palette.
+
+    N.B. tri-tone dithering is not implemented.
 
     :param :class:`PIL.Image` image: The image to apply Bayer ordered dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param int order: The Bayer matrix size to use.
-    :param bool improved_metric: Use the CCIR 601 luminosity metric.
     :return:  The dithered PIL image of type "P" using the input palette.
 
     """
@@ -130,21 +109,18 @@ def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True)
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
 
+    # Prepare all precalculated mixed colours and their respective
     mixing_matrix, colour_map, colour_component_distances = \
-        _get_mixing_plan_matrix(palette, improved_metric=improved_metric)
+        _get_mixing_plan_matrix(palette)
     mixing_matrix = np.array(mixing_matrix, 'int')
-    if improved_metric:
-        luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
+    luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
 
     color_matrix = np.zeros(ni.shape[:2], dtype='uint8')
     for x, y in zip(np.nditer(xx), np.nditer(yy)):
-        if improved_metric:
-            min_index = np.argmin(_improved_mixing_error_fcn(
-                ni[y, x, :], mixing_matrix,
-                colour_component_distances, luma_mat))
-        else:
-            min_index = np.argmin(_standard_mixing_error_fcn(
-                ni[y, x, :], mixing_matrix, colour_component_distances))
+
+        min_index = np.argmin(_improved_mixing_error_fcn(
+            ni[y, x, :], mixing_matrix,
+            colour_component_distances, luma_mat))
         closest_mix_colour = mixing_matrix[min_index, :].tolist()
         closest_mix_hexcolour = palette.rgb2hex(*closest_mix_colour)
         plan = colour_map.get(closest_mix_hexcolour)
@@ -152,3 +128,38 @@ def yliluomas_1_ordered_dithering(image, palette, order=8, improved_metric=True)
                               else plan[0])
 
     return palette.create_PIL_png_from_closest_colour(color_matrix)
+
+
+def _evaluate_mixing_error(desired_colour, mixed_colour,
+                           component_colour_1, component_colour_2,
+                           ratio, component_colour_compare_value=None):
+    """Compare colours and weigh in component difference.
+
+    double EvaluateMixingError(int r,int g,int b,
+                               int r0,int g0,int b0,
+                               int r1,int g1,int b1,
+                               int r2,int g2,int b2,
+                               double ratio)
+    {
+        return ColorCompare(r,g,b, r0,g0,b0)
+             + ColorCompare(r1,g1,b1, r2,g2,b2) * 0.1
+             * (fabs(ratio-0.5)+0.5);
+    }
+
+
+    :param desired_colour:
+    :param mixed_colour:
+    :param component_colour_1:
+    :param component_colour_2:
+    :param ratio:
+    :param component_colour_compare_value:
+    :return:
+
+    """
+    if component_colour_compare_value is None:
+        return (color_compare(desired_colour, mixed_colour) +
+                (color_compare(component_colour_1, component_colour_2) *
+                 0.1 * (np.abs(ratio - 0.5) + 0.5)))
+    else:
+        return (color_compare(desired_colour, mixed_colour) +
+                component_colour_compare_value)
