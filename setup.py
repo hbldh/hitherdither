@@ -22,7 +22,6 @@ from setuptools import setup, find_packages
 basedir = os.path.dirname(os.path.abspath(__file__))
 
 if sys.argv[-1] == 'publish':
-    os.system('python setup.py register')
     os.system('python setup.py sdist upload')
     os.system('python setup.py bdist_wheel upload')
     sys.exit()
@@ -42,7 +41,7 @@ setup(
     author='Henrik Blidh',
     author_email='henrik.blidh@nedomkull.com',
     url='https://github.com/hbldh/hitherdither',
-    description='PIL extension with dithering algorithms that is applicable for arbitrary palettes',
+    description='Dithering algorithms for arbitrary palettes in PIL',
     long_description=read('README.rst'),
     license='MIT',
     keywords=['PIL', 'Pillow', 'dithering', 'dither'],
