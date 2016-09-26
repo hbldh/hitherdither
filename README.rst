@@ -24,7 +24,7 @@ a more managable palette object and several dithering algorithms:
     - Atkinson
 * Standard ordered dithering
     - Bayer matrix
-    - Cluster dot matrix (not implemented yet)
+    - Cluster dot matrix
     - Arbitrary square threshold matrix (not implemented yet)
 * Yliluoma's ordered dithering (see [1]_)
     - Algorithm 1 
@@ -44,18 +44,36 @@ Installation
 Usage
 -----
 
+Bayer dithering using a median cut palette:
+
+.. code:: python
+
+   from PIL import Image
+   import hitherdither
+
+   img = Image.open('image.jpg')
+   palette = hitherdither.palette.Palette.create_by_median_cut(img)
+   img_dithered = hitherdither.ordered.bayer.bayer_dithering(
+       img, palette, [256/4, 256/4, 256/4], order=8)
+
+`Yliluoma's Algorithm 1 <http://bisqwit.iki.fi/story/howto/dither/jy/#YliluomaSOrderedDitheringAlgorithm 1>`_
+using a predefined palette:
+
 .. code:: python
 
    from PIL import Image
    import hitherdither
 
    palette = hitherdither.palette.Palette(
-       [0x432124, ...] 
+       [0x080000, 0x201A0B, 0x432817, 0x492910,
+        0x234309, 0x5D4F1E, 0x9C6B20, 0xA9220F,
+        0x2B347C, 0x2B7409, 0xD0CA40, 0xE8A077,
+        0x6A94AB, 0xD5C4B3, 0xFCE76E, 0xFCFAE2]
    )
 
    img = Image.open('image.jpg')
-   img_dithered = hitherdither.ordered.bayer.bayer_dithering(
-       img, palette, [256/4, 256/4, 256/4], order=8)
+   img_dithered = hitherdither.ordered.yliluoma.yliluomas_1_ordered_dithering(
+       img, palette, order=8)
 
 Tests
 ~~~~~

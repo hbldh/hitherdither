@@ -94,11 +94,50 @@ class Palette(object):
 
     @classmethod
     def create_by_kmeans(cls, image):
-        pass
+        raise NotImplementedError()
 
     @classmethod
-    def create_by_median_cut(cls, image):
-        pass
+    def create_by_median_cut(cls, image, n=16, dim=None):
+        img = np.array(image)
+        # Create pixel buckets to simplify sorting and splitting.
+        if img.ndim == 3:
+            pixels = img.reshape((img.shape[0] * img.shape[1], img.shape[2]))
+        elif img.ndim == 2:
+            pixels = img.reshape((img.shape[0] * img.shape[1], 1))
+
+        def median_cut(p, dim=None):
+            """Median cut method.
+
+            Reference:
+            https://en.wikipedia.org/wiki/Median_cut
+
+            :param p: The pixel array to split in two.
+            :return: Two numpy arrays, split by median cut method.
+            """
+            if dim is not None:
+                sort_dim = dim
+            else:
+                mins = p.min(axis=0)
+                maxs = p.max(axis=0)
+                sort_dim = np.argmax(maxs - mins)
+
+            argument = np.argsort(p[:, sort_dim])
+            p = p[argument, :]
+            m = np.median(p[:, sort_dim])
+            split_mask = p[:, sort_dim] >= m
+            return [p[-split_mask, :].copy(), p[split_mask, :].copy()]
+
+        # Do actual splitting loop.
+        bins = [pixels, ]
+        while len(bins) < n:
+            new_bins = []
+            for bin in bins:
+                new_bins += median_cut(bin, dim)
+            bins = new_bins
+
+        # Average over pixels in each bin to create
+        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8') for bin in bins], 'uint8')
+        return cls(colours)
 
     def create_PIL_png_from_closest_colour(self, cc):
         """Create a ``P`` PIL image with this palette.
@@ -108,28 +147,38 @@ class Palette(object):
         Reference: http://stackoverflow.com/a/29438149
 
         :param :class:`numpy.ndarray` cc: A ``[M x N]`` array with integer
-            values representing palette colour indices to build image from. 
+            values representing palette colour indices to build image from.
         :return: A :class:`PIL.Image.Image` image of mode ``P``.
 
         """
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(self.render(cc)).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
         return pa_image._makeself(im)
-    
-    def create_PIL_png_from_array(self, img_array):
-        """Create a ``P`` PIL image with this palette.
+
+    def create_PIL_png_from_rgb_array(self, img_array):
+        """Create a ``P`` PIL image from a RGB image with this palette.
 
         Avoids the PIL dithering in favour of our own.
 
         Reference: http://stackoverflow.com/a/29438149
 
-        :param :class:`numpy.ndarray` cc: A ``[M x N]`` array with integer
-            values representing palette colour indices to build image from. 
-        :return: A :class:`PIL.Image.Image` image of mode ``P``.
+        :param :class:`numpy.ndarray` img_array: A ``[M x N x 3]`` uint8
+            array representing RGB colours.
+        :return: A :class:`PIL.Image.Image` image of mode ``P`` with colours
+            available in this palette.
 
         """
+        cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(img_array).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(cc).im.convert("P", 0, pa_image.im)
         return pa_image._makeself(im)
+
+    @staticmethod
+    def hex2rgb(x):
+        return hex2rgb(x)
+
+    @staticmethod
+    def rgb2hex(r,g,b):
+        return rgb2hex(r,g,b)

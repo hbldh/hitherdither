@@ -177,11 +177,12 @@ def error_diffusion_dithering(image, palette, method='floyd-steinberg',
           1   1   1
               1
 
-    :param :class:`PIL.Image` image: The image to allpy error diffusion dithering to.
+    :param :class:`PIL.Image` image: The image to apply error diffusion dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param str method: The error diffusion map to use.
     :param int order: Metric parameter ``ord`` to send to :method:`numpy.linalg.norm`.
-    :return: The error diffusion dithered image.
+    :return: The error diffusion dithered PIL image of type
+        "P" using the input palette.
 
     """
     ni = np.array(image, 'float')
@@ -200,4 +201,4 @@ def error_diffusion_dithering(image, palette, method='floyd-steinberg',
                 xn, yn = x + dx, y + dy
                 if (0 <= xn < ni.shape[1]) and (0 <= yn < ni.shape[0]):
                     ni[yn, xn] += quantization_error * diffusion_coefficient
-    return np.array(ni, 'uint8')
+    return palette.create_PIL_png_from_rgb_array(np.array(ni, 'uint8'))
