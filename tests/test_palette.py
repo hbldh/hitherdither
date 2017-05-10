@@ -81,14 +81,20 @@ def test_rgb2hex(hex_colour, rgb_colour):
                                0x000000,
                            ], 4),
                           (test_png().convert('P'), 104),
-                          (test_jpeg().convert('P'), 82),
+                          (test_jpeg().convert('P'), (80, 82)),
                           (scene_bayer0(), 16),
                           (scene_undithered(), 16),
                          ))
 def test_create(input_data, n_colours):
     p = palette.Palette(input_data)
-    assert len(p) == n_colours
-    assert len([c for c in p]) == n_colours
+    if isinstance(n_colours, tuple):
+        # JPEG gets 80 colours in Python 2.7.9 and 3.4,
+        # 82 in Python 2.7.12 and 3.5, 3.6...
+        assert len(p) in n_colours
+        assert len([c for c in p]) in n_colours
+    else:
+        assert len(p) == n_colours
+        assert len([c for c in p]) == n_colours
 
 
 @pytest.mark.parametrize("input_data, n_colours",
