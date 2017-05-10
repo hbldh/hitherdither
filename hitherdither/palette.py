@@ -17,6 +17,8 @@ import numpy as np
 from PIL import ImagePalette, Image
 from PIL.ImagePalette import ImagePalette
 
+from hitherdither.exceptions import PaletteCouldNotBeCreatedError
+
 try:
     string_type = basestring
 except NameError:
@@ -33,6 +35,26 @@ def rgb2hex(r, g, b):
     return (r << 16) + (g << 8) + b
 
 
+def _get_all_present_colours(im):
+    """Returns a dict of RGB colours present.
+
+    N.B. Do not use this except for testing purposes.
+
+    Reference: http://stackoverflow.com/a/4643911
+
+    :param im: The image to get number of colours in.
+    :type im: :class:`~PIL.Image.Image`
+    :return: A dict of contained RGB colours as keys.
+    :rtype: dict
+
+    """
+    from collections import defaultdict
+    by_color = defaultdict(int)
+    for pixel in im.getdata():
+        by_color[pixel] += 1
+    return by_color
+
+
 class Palette(object):
     """The :mod:`~hitherdither` implementation of a colour palette.
 
@@ -41,29 +63,46 @@ class Palette(object):
     - ``uint8`` numpy array of size ``[N x 3]``
     - ``uint8`` numpy array of size ``[3N]``
     - :class:`~PIL.ImagePalette.ImagePalette`
+    - :class:`~PIL.Image.Image`
     - list of hex values
+    - list of RGB tuples
 
     """
 
-    def __init__(self, colours):
-        if isinstance(colours, np.ndarray):
-            if colours.ndim == 1:
-                self.colours = colours.reshape((3, len(colours) // 3))
+    def __init__(self, data):
+        if isinstance(data, np.ndarray):
+            if data.ndim == 1:
+                self.colours = data.reshape((3, len(data) // 3))
             else:
-                self.colours = colours
-            self.hex = [rgb2hex(*colour) for colour in colours]
-        elif isinstance(colours, ImagePalette):
-            _tmp = np.frombuffer(colours.palette, 'uint8')
+                self.colours = data
+            self.hex = [rgb2hex(*colour) for colour in data]
+        elif isinstance(data, ImagePalette):
+            _tmp = np.frombuffer(data.palette, 'uint8')
             self.colours = _tmp.reshape((3, len(_tmp) // 3))
-            self.hex = [rgb2hex(*colour) for colour in colours]
-        elif isinstance(colours, Image.Image):
-            _n_colours = len(colours.getcolors())
-            _tmp = np.array(colours.getpalette())[:3 * _n_colours]
+            self.hex = [rgb2hex(*colour) for colour in data]
+        elif isinstance(data, Image.Image):
+            if data.palette is None:
+                raise PaletteCouldNotBeCreatedError(
+                    "Image of mode {0} has no PIL palette. "
+                    "Make sure it is of mode P.".format(data.mode))
+            _colours = data.getcolors()
+            _n_colours = len(_colours)
+            _tmp = np.array(data.getpalette())[:3 * _n_colours]
             self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
             self.hex = [rgb2hex(*colour) for colour in self]
-        else:
-            self.hex = colours
-            self.colours = np.array([hex2rgb(c) for c in colours])
+        elif isinstance(data, (list, tuple)):
+            if isinstance(data[0], string_type):
+                # Assume hex strings
+                self.hex = data
+                self.colours = np.array([hex2rgb(c) for c in data])
+            elif isinstance(data[0], int):
+                # Assume hex values
+                self.hex = data  # TODO: Convert to hex string.
+                self.colours = np.array([hex2rgb(c) for c in data])
+            else:
+                # Assume RGB tuples
+                self.colours = np.array(data)
+                self.hex = [rgb2hex(*colour) for colour in data]
 
     def __iter__(self):
         for colour in self.colours:

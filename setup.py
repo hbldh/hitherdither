@@ -30,7 +30,7 @@ if sys.argv[-1] == 'publish':
 def read(f):
     return open(f, encoding='utf-8').read()
 
-with open('hitherdither/__init__.py', 'r') as fd:
+with open('hitherdither/version.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         fd.read(), re.MULTILINE).group(1)
 
