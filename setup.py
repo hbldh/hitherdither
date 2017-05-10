@@ -60,7 +60,7 @@ setup(
     install_requires=[
         'Pillow>=3.3.1',
         'numpy>=1.9.0',
-        'pathlib>=1.0.0'
+        'pathlib2'
     ],
     packages=find_packages(exclude=['tests', 'docs']),
     test_suite="tests",

@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import pathlib
+try:
+    import pathlib2 as pathlib
+except:
+    import pathlib
+
 try:
     from urllib import urlopen
 except ImportError:

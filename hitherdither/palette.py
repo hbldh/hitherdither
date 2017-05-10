@@ -56,6 +56,11 @@ class Palette(object):
             _tmp = np.frombuffer(colours.palette, 'uint8')
             self.colours = _tmp.reshape((3, len(_tmp) // 3))
             self.hex = [rgb2hex(*colour) for colour in colours]
+        elif isinstance(colours, Image.Image):
+            _n_colours = len(colours.getcolors())
+            _tmp = np.array(colours.getpalette())[:3 * _n_colours]
+            self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
+            self.hex = [rgb2hex(*colour) for colour in self]
         else:
             self.hex = colours
             self.colours = np.array([hex2rgb(c) for c in colours])
@@ -172,7 +177,7 @@ class Palette(object):
         cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(cc).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
         return pa_image._makeself(im)
 
     @staticmethod
