@@ -60,7 +60,8 @@ def I(n, transposed=False):
 def bayer_dithering(image, palette, thresholds, order=8):
     """Render the image using the ordered Bayer matrix dithering pattern.
 
-    :param :class:`PIL.Image` image: The image to apply Bayer ordered dithering to.
+    :param :class:`PIL.Image` image: The image to apply
+        Bayer ordered dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
     :param int order: The size of the Bayer matrix.
@@ -74,6 +75,7 @@ def bayer_dithering(image, palette, thresholds, order=8):
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     xx %= order
     yy %= order
-    factor_threshold_matrix = (np.expand_dims(bayer_matrix[yy, xx], axis=2) * thresholds)
+    factor_threshold_matrix = (np.expand_dims(
+        bayer_matrix[yy, xx], axis=2) * thresholds)
     new_image = ni + factor_threshold_matrix
     return palette.create_PIL_png_from_rgb_array(new_image)

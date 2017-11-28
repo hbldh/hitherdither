@@ -14,8 +14,10 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
-from PIL import ImagePalette, Image
+from PIL import Image
 from PIL.ImagePalette import ImagePalette
+
+from hitherdither.exceptions import PaletteCouldNotBeCreatedError
 
 try:
     string_type = basestring
@@ -26,11 +28,31 @@ except NameError:
 def hex2rgb(h):
     if isinstance(h, string_type):
         return hex2rgb(int(h[1:] if h.startswith('#') else h, 16))
-    return (h >> 16) & 0xff, (h >> 8) & 0xff , h & 0xff
+    return (h >> 16) & 0xff, (h >> 8) & 0xff, h & 0xff
 
 
 def rgb2hex(r, g, b):
     return (r << 16) + (g << 8) + b
+
+
+def _get_all_present_colours(im):
+    """Returns a dict of RGB colours present.
+
+    N.B. Do not use this except for testing purposes.
+
+    Reference: http://stackoverflow.com/a/4643911
+
+    :param im: The image to get number of colours in.
+    :type im: :class:`~PIL.Image.Image`
+    :return: A dict of contained RGB colours as keys.
+    :rtype: dict
+
+    """
+    from collections import defaultdict
+    by_color = defaultdict(int)
+    for pixel in im.getdata():
+        by_color[pixel] += 1
+    return by_color
 
 
 class Palette(object):
@@ -41,29 +63,46 @@ class Palette(object):
     - ``uint8`` numpy array of size ``[N x 3]``
     - ``uint8`` numpy array of size ``[3N]``
     - :class:`~PIL.ImagePalette.ImagePalette`
+    - :class:`~PIL.Image.Image`
     - list of hex values
+    - list of RGB tuples
 
     """
 
-    def __init__(self, colours):
-        if isinstance(colours, np.ndarray):
-            if colours.ndim == 1:
-                self.colours = colours.reshape((3, len(colours) // 3))
+    def __init__(self, data):
+        if isinstance(data, np.ndarray):
+            if data.ndim == 1:
+                self.colours = data.reshape((3, len(data) // 3))
             else:
-                self.colours = colours
-            self.hex = [rgb2hex(*colour) for colour in colours]
-        elif isinstance(colours, ImagePalette):
-            _tmp = np.frombuffer(colours.palette, 'uint8')
+                self.colours = data
+            self.hex = [rgb2hex(*colour) for colour in data]
+        elif isinstance(data, ImagePalette):
+            _tmp = np.frombuffer(data.palette, 'uint8')
             self.colours = _tmp.reshape((3, len(_tmp) // 3))
-            self.hex = [rgb2hex(*colour) for colour in colours]
-        elif isinstance(colours, Image.Image):
-            _n_colours = len(colours.getcolors())
-            _tmp = np.array(colours.getpalette())[:3 * _n_colours]
+            self.hex = [rgb2hex(*colour) for colour in data]
+        elif isinstance(data, Image.Image):
+            if data.palette is None:
+                raise PaletteCouldNotBeCreatedError(
+                    "Image of mode {0} has no PIL palette. "
+                    "Make sure it is of mode P.".format(data.mode))
+            _colours = data.getcolors()
+            _n_colours = len(_colours)
+            _tmp = np.array(data.getpalette())[:3 * _n_colours]
             self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
             self.hex = [rgb2hex(*colour) for colour in self]
-        else:
-            self.hex = colours
-            self.colours = np.array([hex2rgb(c) for c in colours])
+        elif isinstance(data, (list, tuple)):
+            if isinstance(data[0], string_type):
+                # Assume hex strings
+                self.hex = data
+                self.colours = np.array([hex2rgb(c) for c in data])
+            elif isinstance(data[0], int):
+                # Assume hex values
+                self.hex = data  # TODO: Convert to hex string.
+                self.colours = np.array([hex2rgb(c) for c in data])
+            else:
+                # Assume RGB tuples
+                self.colours = np.array(data)
+                self.hex = [rgb2hex(*colour) for colour in data]
 
     def __iter__(self):
         for colour in self.colours:
@@ -92,10 +131,12 @@ class Palette(object):
         return np.argmin(self.image_distance(image, order=order), axis=2)
 
     def pixel_distance(self, pixel, order=2):
-        return np.array([np.linalg.norm(pixel - colour, ord=order) for colour in self])
+        return np.array([np.linalg.norm(pixel - colour, ord=order)
+                         for colour in self])
 
     def pixel_closest_colour(self, pixel, order=2):
-        return self.colours[np.argmin(self.pixel_distance(pixel, order=order)), :].copy()
+        return self.colours[np.argmin(
+            self.pixel_distance(pixel, order=order)), :].copy()
 
     @classmethod
     def create_by_kmeans(cls, image):
@@ -130,7 +171,7 @@ class Palette(object):
             p = p[argument, :]
             m = np.median(p[:, sort_dim])
             split_mask = p[:, sort_dim] >= m
-            return [p[-split_mask, :].copy(), p[split_mask, :].copy()]
+            return [p[~split_mask, :].copy(), p[split_mask, :].copy()]
 
         # Do actual splitting loop.
         bins = [pixels, ]
@@ -141,7 +182,8 @@ class Palette(object):
             bins = new_bins
 
         # Average over pixels in each bin to create
-        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8') for bin in bins], 'uint8')
+        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8')
+                            for bin in bins], 'uint8')
         return cls(colours)
 
     def create_PIL_png_from_closest_colour(self, cc):
@@ -158,8 +200,14 @@ class Palette(object):
         """
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
-        return pa_image._makeself(im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
+            "P", 0, pa_image.im)
+        try:
+            # Pillow >= 4
+            return pa_image._new(im)
+        except AttributeError:
+            # Pillow < 4
+            return pa_image._makeself(im)
 
     def create_PIL_png_from_rgb_array(self, img_array):
         """Create a ``P`` PIL image from a RGB image with this palette.
@@ -177,13 +225,19 @@ class Palette(object):
         cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
-        return pa_image._makeself(im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
+            "P", 0, pa_image.im)
+        try:
+            # Pillow >= 4
+            return pa_image._new(im)
+        except AttributeError:
+            # Pillow < 4
+            return pa_image._makeself(im)
 
     @staticmethod
     def hex2rgb(x):
         return hex2rgb(x)
 
     @staticmethod
-    def rgb2hex(r,g,b):
-        return rgb2hex(r,g,b)
+    def rgb2hex(r, g, b):
+        return rgb2hex(r, g, b)

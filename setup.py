@@ -1,51 +1,91 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-:mod:`setup.py`
-===============
 
-.. moduleauthor:: hbldh <henrik.blidh@nedomkull.com>
-Created on 2015-11-05
+# Note: To use the 'upload' functionality of this file, you must:
+#   $ pip install twine
 
-"""
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-
+import io
 import os
 import sys
-import re
-from codecs import open
-from setuptools import setup, find_packages
+from shutil import rmtree
+
+from setuptools import find_packages, setup, Command
+
+# Package meta-data.
+NAME = 'hitherdither'
+DESCRIPTION = 'Dithering algorithms for arbitrary palettes in PIL'
+URL = 'https://github.com/hbldh/hitherdither'
+EMAIL = 'henrik.blidh@nedomkull.com'
+AUTHOR = 'Henrik Blidh'
+
+# What packages are required for this module to be executed?
+REQUIRED = [
+   'Pillow>=3.3.1',
+   'numpy>=1.9.0',
+   'pathlib2;python_version<"3"'
+],
 
 
-basedir = os.path.dirname(os.path.abspath(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
-if sys.argv[-1] == 'publish':
-    os.system('python setup.py sdist upload')
-    os.system('python setup.py bdist_wheel upload')
-    sys.exit()
+with io.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+    long_description = '\n' + f.read()
 
-
-def read(f):
-    return open(f, encoding='utf-8').read()
-
-with open('hitherdither/__init__.py', 'r') as fd:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        fd.read(), re.MULTILINE).group(1)
+# Load the package's __version__.py module as a dictionary.
+about = {}
+with open(os.path.join(here, NAME, '__version__.py')) as f:
+    exec(f.read(), about)
 
 
+class UploadCommand(Command):
+    """Support setup.py upload."""
+
+    description = 'Build and publish the package.'
+    user_options = []
+
+    @staticmethod
+    def status(s):
+        """Prints things in bold."""
+        print('\033[1m{0}\033[0m'.format(s))
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        try:
+            self.status('Removing previous builds…')
+            rmtree(os.path.join(here, 'dist'))
+        except OSError:
+            pass
+
+        self.status('Building Source and Wheel (universal) distribution…')
+        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+
+        self.status('Uploading the package to PyPi via Twine…')
+        os.system('twine upload dist/*')
+
+        sys.exit()
+
+
+# Where the magic happens:
 setup(
-    name='hitherdither',
-    version=version,
-    author='Henrik Blidh',
-    author_email='henrik.blidh@nedomkull.com',
-    url='https://github.com/hbldh/hitherdither',
-    description='Dithering algorithms for arbitrary palettes in PIL',
-    long_description=read('README.rst'),
+    name=NAME,
+    version=about['__version__'],
+    description=DESCRIPTION,
+    long_description=long_description,
+    author=AUTHOR,
+    author_email=EMAIL,
+    url=URL,
+    packages=find_packages(exclude=('tests',)),
+    install_requires=REQUIRED,
+    include_package_data=True,
     license='MIT',
-    keywords=['PIL', 'Pillow', 'dithering', 'dither'],
     classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
@@ -53,19 +93,13 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Operating System :: OS Independent',
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
     ],
-    install_requires=[
-        'Pillow>=3.3.1',
-        'numpy>=1.9.0',
-        'pathlib2'
-    ],
-    packages=find_packages(exclude=['tests', 'docs']),
-    test_suite="tests",
-    platforms='any',
-    dependency_links=[],
-    entry_points={},
+    # $ setup.py publish support.
+    cmdclass={
+        'upload': UploadCommand,
+    },
 )
-

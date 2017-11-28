@@ -38,7 +38,8 @@ def _get_mixing_plan_matrix(palette, order=8):
 
                 c1 = np.array(palette[i], 'int')
                 c2 = np.array(palette[j], 'int')
-                cmpval = color_compare(c1, c2) * 0.1 * (np.abs((ratio / float(nn)) - 0.5) + 0.5)
+                cmpval = color_compare(c1, c2) * 0.1 * \
+                    (np.abs((ratio / float(nn)) - 0.5) + 0.5)
                 colour_component_distances.append(cmpval)
 
     mixing_matrix = np.array(mixing_matrix)
@@ -98,7 +99,8 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
 
     N.B. tri-tone dithering is not implemented.
 
-    :param :class:`PIL.Image` image: The image to apply Bayer ordered dithering to.
+    :param :class:`PIL.Image` image: The image to apply
+        Bayer ordered dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param int order: The Bayer matrix size to use.
     :return:  The dithered PIL image of type "P" using the input palette.

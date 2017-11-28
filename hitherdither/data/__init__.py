@@ -3,7 +3,7 @@
 
 try:
     import pathlib2 as pathlib
-except:
+except ImportError:
     import pathlib
 
 try:
@@ -39,7 +39,8 @@ def scene_undithered():
 def scene_bayer0():
     """Chrono Cross PNG image dithered using ordered Bayer matrix method.
 
-    :return: The PIL image of the ordered Bayer matrix dithered Chrono Cross scene.
+    :return: The PIL image of the ordered Bayer matrix dithered
+        Chrono Cross scene.
 
     """
     return _image(
@@ -49,7 +50,8 @@ def scene_bayer0():
 
 
 def _image(pth, url):
-    """Load image specified in ``path``. If not present, fetch it from ``url`` and store locally.
+    """Load image specified in ``path``. If not present,
+    fetch it from ``url`` and store locally.
 
     :param str or :class:`~pathlib.Path` pth:
     :param str url: URL from where to fetch the image.
