@@ -169,7 +169,7 @@ class Palette(object):
             p = p[argument, :]
             m = np.median(p[:, sort_dim])
             split_mask = p[:, sort_dim] >= m
-            return [p[-split_mask, :].copy(), p[split_mask, :].copy()]
+            return [p[~split_mask, :].copy(), p[split_mask, :].copy()]
 
         # Do actual splitting loop.
         bins = [pixels, ]
@@ -180,7 +180,8 @@ class Palette(object):
             bins = new_bins
 
         # Average over pixels in each bin to create
-        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8') for bin in bins], 'uint8')
+        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8')
+                            for bin in bins], 'uint8')
         return cls(colours)
 
     def create_PIL_png_from_closest_colour(self, cc):
@@ -198,7 +199,12 @@ class Palette(object):
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
         im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
-        return pa_image._makeself(im)
+        try:
+            # Pillow >= 4
+            return pa_image._new(im)
+        except:
+            # Pillow < 4
+            return pa_image._makeself(im)
 
     def create_PIL_png_from_rgb_array(self, img_array):
         """Create a ``P`` PIL image from a RGB image with this palette.
@@ -217,7 +223,12 @@ class Palette(object):
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
         im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
-        return pa_image._makeself(im)
+        try:
+            # Pillow >= 4
+            return pa_image._new(im)
+        except:
+            # Pillow < 4
+            return pa_image._makeself(im)
 
     @staticmethod
     def hex2rgb(x):

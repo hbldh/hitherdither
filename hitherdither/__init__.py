@@ -12,6 +12,4 @@ from . import ordered
 from . import diffusion
 from . import palette
 from . import utils
-from .version import __version__, version, version_info
-
-
+from .__version__ import __version__, version
