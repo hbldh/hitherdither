@@ -13,6 +13,5 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 # Version information.
-__version__ = '0.1.5-alpha2'
+__version__ = '0.1.5-beta1'
 version = __version__  # backwards compatibility name
-

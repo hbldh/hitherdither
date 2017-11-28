@@ -36,10 +36,11 @@ _CLUSTER_DOT_MATRICES = {
 
 def cluster_dot_dithering(image, palette, thresholds, order=4):
     """Render the image using the ordered Bayer matrix dithering pattern.
-    
+
     Reference: http://caca.zoy.org/study/part2.html
-    
-    :param :class:`PIL.Image` image: The image to apply the ordered dithering to.
+
+    :param :class:`PIL.Image` image: The image to apply the
+        ordered dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
     :param int order: The size of the Bayer matrix.

@@ -114,11 +114,13 @@ _DIFFUSION_MAPS = {
 def error_diffusion_dithering(image, palette, method='floyd-steinberg',
                               order=2):
     """Perform image dithering by error diffusion method.
-    
-    .. note:: Error diffusion is totally unoptimized and therefore very slow. It
-       is included more as a reference implementation than as a useful method.
 
-    Reference: http://bisqwit.iki.fi/jutut/kuvat/ordered_dither/error_diffusion.txt
+    .. note:: Error diffusion is totally unoptimized and therefore very slow.
+        It is included more as a reference implementation than as a useful
+        method.
+
+    Reference:
+        http://bisqwit.iki.fi/jutut/kuvat/ordered_dither/error_diffusion.txt
 
     Quantization error of *current* pixel is added to the pixels
     on the right and below according to the formulas below.
@@ -177,10 +179,12 @@ def error_diffusion_dithering(image, palette, method='floyd-steinberg',
           1   1   1
               1
 
-    :param :class:`PIL.Image` image: The image to apply error diffusion dithering to.
+    :param :class:`PIL.Image` image: The image to apply error
+        diffusion dithering to.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
     :param str method: The error diffusion map to use.
-    :param int order: Metric parameter ``ord`` to send to :method:`numpy.linalg.norm`.
+    :param int order: Metric parameter ``ord`` to send to
+        :method:`numpy.linalg.norm`.
     :return: The error diffusion dithered PIL image of type
         "P" using the input palette.
 

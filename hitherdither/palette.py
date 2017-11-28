@@ -14,7 +14,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
-from PIL import ImagePalette, Image
+from PIL import Image
 from PIL.ImagePalette import ImagePalette
 
 from hitherdither.exceptions import PaletteCouldNotBeCreatedError
@@ -28,7 +28,7 @@ except NameError:
 def hex2rgb(h):
     if isinstance(h, string_type):
         return hex2rgb(int(h[1:] if h.startswith('#') else h, 16))
-    return (h >> 16) & 0xff, (h >> 8) & 0xff , h & 0xff
+    return (h >> 16) & 0xff, (h >> 8) & 0xff, h & 0xff
 
 
 def rgb2hex(r, g, b):
@@ -131,10 +131,12 @@ class Palette(object):
         return np.argmin(self.image_distance(image, order=order), axis=2)
 
     def pixel_distance(self, pixel, order=2):
-        return np.array([np.linalg.norm(pixel - colour, ord=order) for colour in self])
+        return np.array([np.linalg.norm(pixel - colour, ord=order)
+                         for colour in self])
 
     def pixel_closest_colour(self, pixel, order=2):
-        return self.colours[np.argmin(self.pixel_distance(pixel, order=order)), :].copy()
+        return self.colours[np.argmin(
+            self.pixel_distance(pixel, order=order)), :].copy()
 
     @classmethod
     def create_by_kmeans(cls, image):
@@ -198,11 +200,12 @@ class Palette(object):
         """
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
+            "P", 0, pa_image.im)
         try:
             # Pillow >= 4
             return pa_image._new(im)
-        except:
+        except AttributeError:
             # Pillow < 4
             return pa_image._makeself(im)
 
@@ -222,11 +225,12 @@ class Palette(object):
         cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert("P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
+            "P", 0, pa_image.im)
         try:
             # Pillow >= 4
             return pa_image._new(im)
-        except:
+        except AttributeError:
             # Pillow < 4
             return pa_image._makeself(im)
 
@@ -235,5 +239,5 @@ class Palette(object):
         return hex2rgb(x)
 
     @staticmethod
-    def rgb2hex(r,g,b):
-        return rgb2hex(r,g,b)
+    def rgb2hex(r, g, b):
+        return rgb2hex(r, g, b)
