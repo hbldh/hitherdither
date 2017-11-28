@@ -15,7 +15,7 @@ from __future__ import absolute_import
 import re
 
 # Version information.
-__version__ = '0.1.4.dev2'
+__version__ = '0.1.5-alpha1'
 version = __version__  # backwards compatibility name
 try:
     version_info = [int(x) if x.isdigit() else x for x in

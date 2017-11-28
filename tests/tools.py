@@ -13,14 +13,17 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import pytest
-import pathlib2
+try:
+    import pathlib2 as pathlib
+except ImportError:
+    import pathlib
 
 from hitherdither.data import _image
 
 
 @pytest.fixture(scope='session')
 def test_png():
-    p = pathlib2.Path(__file__).parent.joinpath('astronaut.png')
+    p = pathlib.Path(__file__).parent.joinpath('astronaut.png')
     url = 'https://raw.githubusercontent.com/scikit-image/scikit-image/master/skimage/data/astronaut.png'
     i = _image(p, url)
     return i
@@ -28,7 +31,7 @@ def test_png():
 
 @pytest.fixture(scope='session')
 def test_jpeg():
-    p = pathlib2.Path(__file__).parent.joinpath('rocket.jpg')
+    p = pathlib.Path(__file__).parent.joinpath('rocket.jpg')
     url = 'https://raw.githubusercontent.com/scikit-image/scikit-image/master/skimage/data/rocket.jpg'
     i = _image(p, url)
     return i
