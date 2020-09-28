@@ -20,8 +20,8 @@ from PIL import Image
 
 
 def np2pil(img):
-    return Image.fromarray(np.array(img, 'uint8'))
+    return Image.fromarray(np.array(img, "uint8"))
 
 
 def pil2np(img):
-    return np.array(img, 'uint8')
+    return np.array(img, "uint8")

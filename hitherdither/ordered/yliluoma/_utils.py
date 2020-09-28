@@ -35,8 +35,8 @@ def color_compare(c1, c2):
     :return: float
 
     """
-    luma_diff = (c1.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0) -
-                 c2.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0))
+    luma_diff = c1.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0) - c2.dot(CCIR_LUMINOSITY) / (
+        255.0 * 1000.0
+    )
     diff_col = (c1 - c2) / 255.0
-    return (((diff_col ** 2).dot(CCIR_LUMINOSITY / 1000.0) * 0.75) +
-            (luma_diff ** 2))
+    return ((diff_col ** 2).dot(CCIR_LUMINOSITY / 1000.0) * 0.75) + (luma_diff ** 2)

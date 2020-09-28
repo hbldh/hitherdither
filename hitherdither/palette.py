@@ -27,8 +27,8 @@ except NameError:
 
 def hex2rgb(h):
     if isinstance(h, string_type):
-        return hex2rgb(int(h[1:] if h.startswith('#') else h, 16))
-    return (h >> 16) & 0xff, (h >> 8) & 0xff, h & 0xff
+        return hex2rgb(int(h[1:] if h.startswith("#") else h, 16))
+    return (h >> 16) & 0xFF, (h >> 8) & 0xFF, h & 0xFF
 
 
 def rgb2hex(r, g, b):
@@ -49,6 +49,7 @@ def _get_all_present_colours(im):
 
     """
     from collections import defaultdict
+
     by_color = defaultdict(int)
     for pixel in im.getdata():
         by_color[pixel] += 1
@@ -77,17 +78,18 @@ class Palette(object):
                 self.colours = data
             self.hex = [rgb2hex(*colour) for colour in data]
         elif isinstance(data, ImagePalette):
-            _tmp = np.frombuffer(data.palette, 'uint8')
+            _tmp = np.frombuffer(data.palette, "uint8")
             self.colours = _tmp.reshape((3, len(_tmp) // 3))
             self.hex = [rgb2hex(*colour) for colour in data]
         elif isinstance(data, Image.Image):
             if data.palette is None:
                 raise PaletteCouldNotBeCreatedError(
                     "Image of mode {0} has no PIL palette. "
-                    "Make sure it is of mode P.".format(data.mode))
+                    "Make sure it is of mode P.".format(data.mode)
+                )
             _colours = data.getcolors()
             _n_colours = len(_colours)
-            _tmp = np.array(data.getpalette())[:3 * _n_colours]
+            _tmp = np.array(data.getpalette())[: 3 * _n_colours]
             self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
             self.hex = [rgb2hex(*colour) for colour in self]
         elif isinstance(data, (list, tuple)):
@@ -118,11 +120,11 @@ class Palette(object):
             raise IndexError("Can only reference colours by integer values.")
 
     def render(self, colours):
-        return np.array(np.take(self.colours, colours, axis=0), 'uint8')
+        return np.array(np.take(self.colours, colours, axis=0), "uint8")
 
     def image_distance(self, image, order=2):
-        ni = np.array(image, 'float')
-        distances = np.zeros((ni.shape[0], ni.shape[1], len(self)), 'float')
+        ni = np.array(image, "float")
+        distances = np.zeros((ni.shape[0], ni.shape[1], len(self)), "float")
         for i, colour in enumerate(self):
             distances[:, :, i] = np.linalg.norm(ni - colour, ord=order, axis=2)
         return distances
@@ -131,12 +133,12 @@ class Palette(object):
         return np.argmin(self.image_distance(image, order=order), axis=2)
 
     def pixel_distance(self, pixel, order=2):
-        return np.array([np.linalg.norm(pixel - colour, ord=order)
-                         for colour in self])
+        return np.array([np.linalg.norm(pixel - colour, ord=order) for colour in self])
 
     def pixel_closest_colour(self, pixel, order=2):
-        return self.colours[np.argmin(
-            self.pixel_distance(pixel, order=order)), :].copy()
+        return self.colours[
+            np.argmin(self.pixel_distance(pixel, order=order)), :
+        ].copy()
 
     @classmethod
     def create_by_kmeans(cls, image):
@@ -174,7 +176,9 @@ class Palette(object):
             return [p[~split_mask, :].copy(), p[split_mask, :].copy()]
 
         # Do actual splitting loop.
-        bins = [pixels, ]
+        bins = [
+            pixels,
+        ]
         while len(bins) < n:
             new_bins = []
             for bin in bins:
@@ -182,8 +186,9 @@ class Palette(object):
             bins = new_bins
 
         # Average over pixels in each bin to create
-        colours = np.array([np.array(bin.mean(axis=0).round(), 'uint8')
-                            for bin in bins], 'uint8')
+        colours = np.array(
+            [np.array(bin.mean(axis=0).round(), "uint8") for bin in bins], "uint8"
+        )
         return cls(colours)
 
     def create_PIL_png_from_closest_colour(self, cc):
@@ -200,8 +205,7 @@ class Palette(object):
         """
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
-            "P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, "uint8")).im.convert("P", 0, pa_image.im)
         try:
             # Pillow >= 4
             return pa_image._new(im)
@@ -225,8 +229,7 @@ class Palette(object):
         cc = self.image_closest_colour(img_array, order=2)
         pa_image = Image.new("P", cc.shape[::-1])
         pa_image.putpalette(self.colours.flatten().tolist())
-        im = Image.fromarray(np.array(cc, 'uint8')).im.convert(
-            "P", 0, pa_image.im)
+        im = Image.fromarray(np.array(cc, "uint8")).im.convert("P", 0, pa_image.im)
         try:
             # Pillow >= 4
             return pa_image._new(im)

@@ -45,13 +45,11 @@ _BAYER_MATRICES = {
         [35, 19, 47, 31, 34, 18, 46, 30],
         [11, 59, 7, 55, 10, 58, 6, 54],
         [43, 27, 39, 23, 42, 26, 38, 22]]
-    )
+    ).T
 }
 
 @pytest.mark.parametrize("order", [2,4,8])
 def test_bayer(order):
-    try:
-        np.testing.assert_allclose(bayer.B(order, False), _BAYER_MATRICES.get(order))
-    except AssertionError:
-        np.testing.assert_allclose(bayer.B(order, True), _BAYER_MATRICES.get(order))
+    np.testing.assert_allclose(bayer.B(order, False), _BAYER_MATRICES.get(order))
+
 

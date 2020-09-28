@@ -44,17 +44,25 @@ def I(n, transposed=False):
     """
     if n == 2:
         if transposed:
-            return np.array([[0, 3], [2, 1]], 'int')
+            return np.array([[0, 3], [2, 1]], "int")
         else:
-            return np.array([[0, 2], [3, 1]], 'int')
+            return np.array([[0, 2], [3, 1]], "int")
     else:
         smaller_I = I(n >> 1, transposed)
         if transposed:
-            return np.bmat([[4 * smaller_I, 4 * smaller_I + 3],
-                            [4 * smaller_I + 2, 4 * smaller_I + 1]])
+            return np.bmat(
+                [
+                    [4 * smaller_I, 4 * smaller_I + 3],
+                    [4 * smaller_I + 2, 4 * smaller_I + 1],
+                ]
+            )
         else:
-            return np.bmat([[4 * smaller_I,     4 * smaller_I + 2],
-                            [4 * smaller_I + 3, 4 * smaller_I + 1]])
+            return np.bmat(
+                [
+                    [4 * smaller_I, 4 * smaller_I + 2],
+                    [4 * smaller_I + 3, 4 * smaller_I + 1],
+                ]
+            )
 
 
 def bayer_dithering(image, palette, thresholds, order=8):
@@ -70,12 +78,11 @@ def bayer_dithering(image, palette, thresholds, order=8):
 
     """
     bayer_matrix = B(order)
-    ni = np.array(image, 'uint8')
-    thresholds = np.array(thresholds, 'uint8')
+    ni = np.array(image, "uint8")
+    thresholds = np.array(thresholds, "uint8")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     xx %= order
     yy %= order
-    factor_threshold_matrix = (np.expand_dims(
-        bayer_matrix[yy, xx], axis=2) * thresholds)
+    factor_threshold_matrix = np.expand_dims(bayer_matrix[yy, xx], axis=2) * thresholds
     new_image = ni + factor_threshold_matrix
     return palette.create_PIL_png_from_rgb_array(new_image)
