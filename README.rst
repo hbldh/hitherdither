@@ -99,7 +99,8 @@ References
 .. [1] Joel Yliluoma's arbitrary-palette positional dithering algorithm (http://bisqwit.iki.fi/story/howto/dither/jy/)
 
 
-.. |Build Status| image:: https://travis-ci.org/hbldh/hitherdither.svg?branch=master
-   :target: https://travis-ci.org/hbldh/hitherdither
+.. |Build Status| image:: https://github.com/hbldh/hitherdither/workflows/Build%20and%20Test/badge.svg
+   :target: https://github.com/hbldh/hitherdither/actions?query=workflow%3A%22Build+and+Test%22
+   :alt: Build and Test
 .. |Coverage Status| image:: https://coveralls.io/repos/github/hbldh/hitherdither/badge.svg?branch=master
    :target: https://coveralls.io/github/hbldh/hitherdither?branch=master
