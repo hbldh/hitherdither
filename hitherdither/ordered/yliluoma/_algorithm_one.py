@@ -36,10 +36,13 @@ def _get_mixing_plan_matrix(palette, order=8):
                 colours[hex_colour] = (i, j, ratio / nn)
                 mixing_matrix.append(c_mix)
 
-                c1 = np.array(palette[i], 'int')
-                c2 = np.array(palette[j], 'int')
-                cmpval = color_compare(c1, c2) * 0.1 * \
-                    (np.abs((ratio / float(nn)) - 0.5) + 0.5)
+                c1 = np.array(palette[i], "int")
+                c2 = np.array(palette[j], "int")
+                cmpval = (
+                    color_compare(c1, c2)
+                    * 0.1
+                    * (np.abs((ratio / float(nn)) - 0.5) + 0.5)
+                )
                 colour_component_distances.append(cmpval)
 
     mixing_matrix = np.array(mixing_matrix)
@@ -52,13 +55,13 @@ def _get_mixing_plan_matrix(palette, order=8):
 
 
 def _colour_combine(palette, i, j, ratio):
-    c1, c2 = np.array(palette[i], 'int'), np.array(palette[j], 'int')
-    return np.array(c1 + ratio * (c2 - c1), 'uint8')
+    c1, c2 = np.array(palette[i], "int"), np.array(palette[j], "int")
+    return np.array(c1 + ratio * (c2 - c1), "uint8")
 
 
 def _improved_mixing_error_fcn(
-        colour, mixing_matrix,
-        colour_component_distances, luma_mat=None):
+    colour, mixing_matrix, colour_component_distances, luma_mat=None
+):
     """Compares two colours using the Psychovisual model.
 
     The simplest way to adjust the psychovisual model is to
@@ -81,7 +84,7 @@ def _improved_mixing_error_fcn(
     :return: :class:`numpy.ndarray`
 
     """
-    colour = np.array(colour, 'int')
+    colour = np.array(colour, "int")
     if luma_mat is None:
         luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
     luma_colour = colour.dot(CCIR_LUMINOSITY) / (255.0 * 1000.0)
@@ -107,34 +110,41 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
 
     """
     bayer_matrix = I(order, transposed=True) / 64.0
-    ni = np.array(image, 'uint8')
+    ni = np.array(image, "uint8")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
 
     # Prepare all precalculated mixed colours and their respective
-    mixing_matrix, colour_map, colour_component_distances = \
-        _get_mixing_plan_matrix(palette)
-    mixing_matrix = np.array(mixing_matrix, 'int')
+    mixing_matrix, colour_map, colour_component_distances = _get_mixing_plan_matrix(
+        palette
+    )
+    mixing_matrix = np.array(mixing_matrix, "int")
     luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
 
-    color_matrix = np.zeros(ni.shape[:2], dtype='uint8')
+    color_matrix = np.zeros(ni.shape[:2], dtype="uint8")
     for x, y in zip(np.nditer(xx), np.nditer(yy)):
 
-        min_index = np.argmin(_improved_mixing_error_fcn(
-            ni[y, x, :], mixing_matrix,
-            colour_component_distances, luma_mat))
+        min_index = np.argmin(
+            _improved_mixing_error_fcn(
+                ni[y, x, :], mixing_matrix, colour_component_distances, luma_mat
+            )
+        )
         closest_mix_colour = mixing_matrix[min_index, :].tolist()
         closest_mix_hexcolour = palette.rgb2hex(*closest_mix_colour)
         plan = colour_map.get(closest_mix_hexcolour)
-        color_matrix[y, x] = (plan[1] if (factor_matrix[y, x] < plan[-1])
-                              else plan[0])
+        color_matrix[y, x] = plan[1] if (factor_matrix[y, x] < plan[-1]) else plan[0]
 
     return palette.create_PIL_png_from_closest_colour(color_matrix)
 
 
-def _evaluate_mixing_error(desired_colour, mixed_colour,
-                           component_colour_1, component_colour_2,
-                           ratio, component_colour_compare_value=None):
+def _evaluate_mixing_error(
+    desired_colour,
+    mixed_colour,
+    component_colour_1,
+    component_colour_2,
+    ratio,
+    component_colour_compare_value=None,
+):
     """Compare colours and weigh in component difference.
 
     double EvaluateMixingError(int r,int g,int b,
@@ -159,9 +169,12 @@ def _evaluate_mixing_error(desired_colour, mixed_colour,
 
     """
     if component_colour_compare_value is None:
-        return (color_compare(desired_colour, mixed_colour) +
-                (color_compare(component_colour_1, component_colour_2) *
-                 0.1 * (np.abs(ratio - 0.5) + 0.5)))
+        return color_compare(desired_colour, mixed_colour) + (
+            color_compare(component_colour_1, component_colour_2)
+            * 0.1
+            * (np.abs(ratio - 0.5) + 0.5)
+        )
     else:
-        return (color_compare(desired_colour, mixed_colour) +
-                component_colour_compare_value)
+        return (
+            color_compare(desired_colour, mixed_colour) + component_colour_compare_value
+        )
