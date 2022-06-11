@@ -90,7 +90,7 @@ class Palette(object):
             _colours = data.getcolors()
             _n_colours = len(_colours)
             _tmp = np.array(data.getpalette())[: 3 * _n_colours]
-            self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
+            self.colours = _tmp.reshape((len(_tmp) // 3, 3))
             self.hex = [rgb2hex(*colour) for colour in self]
         elif isinstance(data, (list, tuple)):
             if isinstance(data[0], string_type):
