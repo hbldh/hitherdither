@@ -182,7 +182,8 @@ class Palette(object):
         while len(bins) < n:
             new_bins = []
             for bin in bins:
-                new_bins += median_cut(bin, dim)
+                if len(bin) != 0:
+                    new_bins += median_cut(bin, dim)
             bins = new_bins
 
         # Average over pixels in each bin to create
