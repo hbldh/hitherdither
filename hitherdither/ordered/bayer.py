@@ -42,6 +42,8 @@ def I(n, transposed=False):
     :return: The index matrix.
 
     """
+    if n == 0:
+        return np.array([[0, 0], [0, 0]], "int")
     if n == 2:
         if transposed:
             return np.array([[0, 3], [2, 1]], "int")
