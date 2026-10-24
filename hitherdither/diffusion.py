@@ -91,22 +91,6 @@ _DIFFUSION_MAPS = {
         (-1, 1, 1 / 4),
         (0, 1, 1 / 4),
     ),
-    # Experimental square-grid adaptation of the hexagonal-grid
-    # Stevenson-Arce filter (see issue #6). Weights are /200.
-    "stevenson-arce": (
-        (2, 0, 32 / 200),
-        (-3, 1, 12 / 200),
-        (-1, 1, 26 / 200),
-        (1, 1, 30 / 200),
-        (3, 1, 16 / 200),
-        (-2, 2, 12 / 200),
-        (0, 2, 26 / 200),
-        (2, 2, 12 / 200),
-        (-3, 3, 5 / 200),
-        (-1, 3, 12 / 200),
-        (1, 3, 12 / 200),
-        (3, 3, 5 / 200),
-    ),
 }
 
 
@@ -163,17 +147,6 @@ def error_diffusion_dithering(image, palette, method="floyd-steinberg", order=2)
               *  2
            1  1         / 4
 
-    **Stevenson-Arce (experimental)**
-
-    This is an adaptation to a square pixel grid of an algorithm designed
-    for hexagonal grids, so results are not identical to the original
-    (see issue #6). Offsets are given in whole pixels::
-
-                          *     .    32
-        12    .   26    .   30    .   16
-        .    12    .   26    .   12    .
-        5     .   12    .   12    .    5     / 200
-
     Atkinson::
 
               *   1   1    / 8
@@ -188,7 +161,7 @@ def error_diffusion_dithering(image, palette, method="floyd-steinberg", order=2)
     :param palette: The palette to use.
     :type palette: :class:`~hitherdither.palette.Palette`
     :param method: The error diffusion map to use (case-insensitive).
-        One of: ``floyd-steinberg``, ``atkinson``, ``jarvis-judice-ninke``, ``stucki``, ``burkes``, ``sierra3``, ``sierra2``, ``sierra-2-4a``, ``stevenson-arce``.
+        One of: ``floyd-steinberg``, ``atkinson``, ``jarvis-judice-ninke``, ``stucki``, ``burkes``, ``sierra3``, ``sierra2``, ``sierra-2-4a``.
     :param order: Metric parameter ``ord`` to send to
         :func:`numpy.linalg.norm`.
     :return: The error diffusion dithered PIL image of type

@@ -21,8 +21,6 @@ a more managable palette object and several dithering algorithms:
     - Sierra2
     - Sierra-2-4A
     - Atkinson
-    - Stevenson-Arce (*experimental*: an adaptation to square pixels of an
-      algorithm designed for hexagonal grids, see issue #6)
 * Standard ordered dithering
     - Bayer matrix
     - Cluster dot matrix (orders 4, 8 and ``(5, 3)``)
@@ -132,7 +130,6 @@ Burkes                0.37      4.55
 Sierra3               0.40      4.82
 Sierra2               0.35      4.50
 Sierra-2-4A           0.32      4.47
-Stevenson-Arce        0.41      5.04
 ====================  ========  ============
 
 Ordered dithering adds ``(matrix - 0.5) * thresholds`` to each pixel, so with

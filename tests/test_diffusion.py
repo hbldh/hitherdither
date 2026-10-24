@@ -37,12 +37,6 @@ def test_weights_sum_to_one():
             assert total == pytest.approx(1.0), name
 
 
-def test_stevenson_arce_weights():
-    m = _DIFFUSION_MAPS["stevenson-arce"]
-    assert sum(w * 200 for _, _, w in m) == pytest.approx(200)
-    assert len(m) == 12
-
-
 @pytest.mark.parametrize("method", sorted(_DIFFUSION_MAPS))
 def test_methods_run(method):
     out = error_diffusion_dithering(_gradient(12, 8), BW, method=method)

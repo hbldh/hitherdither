@@ -78,7 +78,7 @@ def main():
         ("cluster-dot-8", lambda: hitherdither.ordered.cluster.cluster_dot_dithering(img, palette, t, order=8)),
         ("yliluoma-1-8", lambda: hitherdither.ordered.yliluoma.yliluomas_1_ordered_dithering(img, palette, order=8)),
     ]
-    for m in ("floyd-steinberg", "atkinson", "jarvis-judice-ninke", "stucki", "burkes", "sierra3", "sierra2", "sierra-2-4a", "stevenson-arce"):
+    for m in ("floyd-steinberg", "atkinson", "jarvis-judice-ninke", "stucki", "burkes", "sierra3", "sierra2", "sierra-2-4a"):
         runs.append((m, lambda m=m: hitherdither.diffusion.error_diffusion_dithering(img, palette, m)))
     # baseline: nearest colour without dithering
     runs.insert(0, ("no-dither", lambda: palette.create_PIL_png_from_rgb_array(np.array(img))))
