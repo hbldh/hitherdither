@@ -1,0 +1,72 @@
+name: Publish
+
+# Push a version tag (for example v0.2.0) to build the package, publish it to
+# PyPI with trusted publishing and create a GitHub release.
+on:
+    push:
+        tags:
+            - 'v*'
+
+jobs:
+    build:
+        name: Build distributions
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: actions/setup-python@v5
+                with:
+                    python-version: '3.12'
+            -   name: Check that the tag matches the package version
+                run: |
+                    VERSION=$(python -c "exec(open('hitherdither/__version__.py').read()); print(__version__)")
+                    if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+                        echo "Tag ${GITHUB_REF_NAME} does not match hitherdither/__version__.py (${VERSION})" >&2
+                        exit 1
+                    fi
+            -   name: Build sdist and wheel
+                run: |
+                    python -m pip install --upgrade pip build twine
+                    python -m build
+                    twine check dist/*
+            -   uses: actions/upload-artifact@v4
+                with:
+                    name: dist
+                    path: dist/
+                    if-no-files-found: error
+
+    publish-pypi:
+        name: Publish to PyPI
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi
+            url: https://pypi.org/project/hitherdither/
+        permissions:
+            id-token: write  # required for trusted publishing
+        steps:
+            -   uses: actions/download-artifact@v4
+                with:
+                    name: dist
+                    path: dist/
+            -   name: Publish to PyPI
+                uses: pypa/gh-action-pypi-publish@release/v1
+
+    github-release:
+        name: Create GitHub release
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            -   uses: actions/download-artifact@v4
+                with:
+                    name: dist
+                    path: dist/
+            -   name: Create release
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    gh release create "${GITHUB_REF_NAME}" dist/* \
+                        --repo "${GITHUB_REPOSITORY}" \
+                        --title "${GITHUB_REF_NAME}" \
+                        --generate-notes
