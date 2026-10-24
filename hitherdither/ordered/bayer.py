@@ -52,14 +52,14 @@ def I(n, transposed=False):
     else:
         smaller_I = I(n >> 1, transposed)
         if transposed:
-            return np.bmat(
+            return np.block(
                 [
                     [4 * smaller_I, 4 * smaller_I + 3],
                     [4 * smaller_I + 2, 4 * smaller_I + 1],
                 ]
             )
         else:
-            return np.bmat(
+            return np.block(
                 [
                     [4 * smaller_I, 4 * smaller_I + 2],
                     [4 * smaller_I + 3, 4 * smaller_I + 1],
@@ -80,11 +80,12 @@ def bayer_dithering(image, palette, thresholds, order=8):
 
     """
     bayer_matrix = B(order)
-    ni = np.array(image, "uint8")
-    thresholds = np.array(thresholds, "uint8")
+    # Compute in float and clip: uint8 arithmetic would wrap around.
+    ni = np.array(image, "float")
+    thresholds = np.array(thresholds, "float")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     xx %= order
     yy %= order
-    factor_threshold_matrix = np.expand_dims(bayer_matrix[yy, xx], axis=2) * thresholds
-    new_image = ni + factor_threshold_matrix
+    factor_threshold_matrix = np.expand_dims(bayer_matrix[yy, xx] - 0.5, axis=2) * thresholds
+    new_image = np.clip(ni + factor_threshold_matrix, 0, 255)
     return palette.create_PIL_png_from_rgb_array(new_image)

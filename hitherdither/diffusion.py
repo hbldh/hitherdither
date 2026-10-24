@@ -15,6 +15,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
+from PIL import Image
 
 _DIFFUSION_MAPS = {
     "floyd-steinberg": (
@@ -94,6 +95,22 @@ _DIFFUSION_MAPS = {
         (-1, 1, 1 / 4),
         (0, 1, 1 / 4),
     ),
+    # Experimental square-grid adaptation of the hexagonal-grid
+    # Stevenson-Arce filter (see issue #6). Weights are /200.
+    "stevenson-arce": (
+        (2, 0, 32 / 200),
+        (-3, 1, 12 / 200),
+        (-1, 1, 26 / 200),
+        (1, 1, 30 / 200),
+        (3, 1, 16 / 200),
+        (-2, 2, 12 / 200),
+        (0, 2, 26 / 200),
+        (2, 2, 12 / 200),
+        (-3, 3, 5 / 200),
+        (-1, 3, 12 / 200),
+        (1, 3, 12 / 200),
+        (3, 3, 5 / 200),
+    ),
 }
 
 
@@ -151,12 +168,16 @@ def error_diffusion_dithering(image, palette, method="floyd-steinberg", order=2)
               *  2
            1  1         / 4
 
-    Stevenson-Arce:
+    Stevenson-Arce (experimental):
 
-                      *   .  32
-        12   .   26   .  30   .  16
-        .   12    .  26   .  12   .
-        5    .   12   .  12   .   5    / 200
+    This is an adaptation to a square pixel grid of an algorithm designed
+    for hexagonal grids, so results are not identical to the original
+    (see issue #6). Offsets are given in whole pixels:
+
+                          *     .    32
+        12    .   26    .   30    .   16
+        .    12    .   26    .   12    .
+        5     .   12    .   12    .    5     / 200
 
     Atkinson:
 
@@ -165,29 +186,53 @@ def error_diffusion_dithering(image, palette, method="floyd-steinberg", order=2)
               1
 
     :param :class:`PIL.Image` image: The image to apply error
-        diffusion dithering to.
+        diffusion dithering to. Images that are not of mode ``RGB`` (e.g.
+        ``L``, ``1``, ``RGBA``, ``P``, ``CMYK``) are converted with
+        ``image.convert("RGB")`` first, so greyscale images are handled as
+        RGB images. 2-D numpy arrays are treated as greyscale.
     :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
-    :param str method: The error diffusion map to use.
+    :param str method: The error diffusion map to use (case-insensitive).
+        One of: ``floyd-steinberg``, ``atkinson``, ``jarvis-judice-ninke``, ``stucki``, ``burkes``, ``sierra3``, ``sierra2``, ``sierra-2-4a``, ``stevenson-arce``.
     :param int order: Metric parameter ``ord`` to send to
         :method:`numpy.linalg.norm`.
     :return: The error diffusion dithered PIL image of type
         "P" using the input palette.
+    :raises ValueError: If ``method`` is not a known method.
 
     """
-    ni = np.array(image, "float")
+    try:
+        diff_map = _DIFFUSION_MAPS[method.lower()]
+    except (KeyError, AttributeError):
+        raise ValueError(
+            "Unknown error diffusion method {0!r}. Valid methods: {1}.".format(
+                method, ", ".join(sorted(_DIFFUSION_MAPS))
+            )
+        )
 
-    diff_map = _DIFFUSION_MAPS.get(method.lower())
+    if isinstance(image, Image.Image):
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        ni = np.array(image, "float")
+    else:
+        ni = np.array(image, "float")
+        if ni.ndim == 2:
+            ni = np.repeat(ni[:, :, np.newaxis], 3, axis=2)
+        elif ni.ndim == 3 and ni.shape[2] == 1:
+            ni = np.repeat(ni, 3, axis=2)
+        elif ni.ndim == 3 and ni.shape[2] == 4:
+            ni = ni[:, :, :3].copy()
 
-    for y in range(ni.shape[0]):
-        for x in range(ni.shape[1]):
-            old_pixel = ni[y, x]
-            old_pixel[old_pixel < 0.0] = 0.0
-            old_pixel[old_pixel > 255.0] = 255.0
+    height, width = ni.shape[:2]
+    for y in range(height):
+        for x in range(width):
+            old_pixel = np.clip(ni[y, x], 0.0, 255.0)
             new_pixel = palette.pixel_closest_colour(old_pixel, order)
             quantization_error = old_pixel - new_pixel
             ni[y, x] = new_pixel
             for dx, dy, diffusion_coefficient in diff_map:
                 xn, yn = x + dx, y + dy
-                if (0 <= xn < ni.shape[1]) and (0 <= yn < ni.shape[0]):
+                if (0 <= xn < width) and (0 <= yn < height):
                     ni[yn, xn] += quantization_error * diffusion_coefficient
-    return palette.create_PIL_png_from_rgb_array(np.array(ni, "uint8"))
+    return palette.create_PIL_png_from_rgb_array(
+        np.rint(np.clip(ni, 0.0, 255.0)).astype("uint8")
+    )

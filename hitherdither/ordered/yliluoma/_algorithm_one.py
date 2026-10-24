@@ -21,7 +21,9 @@ from ..bayer import I
 
 def _get_mixing_plan_matrix(palette, order=8):
     mixing_matrix = []
-    colours = {}
+    # One (i, j, ratio) plan per row of ``mixing_matrix``; looked up by index,
+    # since different plans can mix to the same RGB colour.
+    plans = []
     colour_component_distances = []
 
     nn = order * order
@@ -32,8 +34,7 @@ def _get_mixing_plan_matrix(palette, order=8):
                     break
                 # Determine the two component colors.
                 c_mix = _colour_combine(palette, i, j, ratio / nn)
-                hex_colour = palette.rgb2hex(*c_mix.tolist())
-                colours[hex_colour] = (i, j, ratio / nn)
+                plans.append((i, j, ratio / nn))
                 mixing_matrix.append(c_mix)
 
                 c1 = np.array(palette[i], "int")
@@ -48,10 +49,7 @@ def _get_mixing_plan_matrix(palette, order=8):
     mixing_matrix = np.array(mixing_matrix)
     colour_component_distances = np.array(colour_component_distances)
 
-    for c in mixing_matrix:
-        assert palette.rgb2hex(*c.tolist()) in colours
-
-    return mixing_matrix, colours, colour_component_distances
+    return mixing_matrix, plans, colour_component_distances
 
 
 def _colour_combine(palette, i, j, ratio):
@@ -109,14 +107,14 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
     :return:  The dithered PIL image of type "P" using the input palette.
 
     """
-    bayer_matrix = I(order, transposed=True) / 64.0
+    bayer_matrix = I(order, transposed=True) / float(order * order)
     ni = np.array(image, "uint8")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
 
     # Prepare all precalculated mixed colours and their respective
-    mixing_matrix, colour_map, colour_component_distances = _get_mixing_plan_matrix(
-        palette
+    mixing_matrix, plans, colour_component_distances = _get_mixing_plan_matrix(
+        palette, order
     )
     mixing_matrix = np.array(mixing_matrix, "int")
     luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
@@ -129,9 +127,7 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
                 ni[y, x, :], mixing_matrix, colour_component_distances, luma_mat
             )
         )
-        closest_mix_colour = mixing_matrix[min_index, :].tolist()
-        closest_mix_hexcolour = palette.rgb2hex(*closest_mix_colour)
-        plan = colour_map.get(closest_mix_hexcolour)
+        plan = plans[min_index]
         color_matrix[y, x] = plan[1] if (factor_matrix[y, x] < plan[-1]) else plan[0]
 
     return palette.create_PIL_png_from_closest_colour(color_matrix)
