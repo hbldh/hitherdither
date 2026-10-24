@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-bayer_dithering
------------
-
-:copyright: 2016-09-09 by hbldh <henrik.blidh@nedomkull.com>
+Cluster dot ordered dithering.
 
 """
 
@@ -14,6 +11,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
+
+from hitherdither.utils import to_rgb_array
 
 _CLUSTER_DOT_MATRICES = {
     4: np.array([[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]], "float")
@@ -25,7 +24,7 @@ _CLUSTER_DOT_MATRICES = {
             [22, 6, 4, 16, 43, 57, 63, 53],
             [30, 20, 18, 28, 33, 41, 55, 39],
             [34, 46, 48, 36, 25, 11, 13, 27],
-            [44, 57, 60, 50, 9, 1, 3, 15],
+            [44, 58, 60, 50, 9, 1, 3, 15],
             [42, 56, 62, 52, 23, 7, 5, 17],
             [32, 40, 54, 38, 31, 21, 19, 29],
         ],
@@ -38,30 +37,34 @@ _CLUSTER_DOT_MATRICES = {
 
 
 def cluster_dot_dithering(image, palette, thresholds, order=4):
-    """Render the image using the ordered Bayer matrix dithering pattern.
+    """Render the image using an ordered cluster-dot dithering pattern.
 
     Reference: http://caca.zoy.org/study/part2.html
 
-    :param :class:`PIL.Image` image: The image to apply the
-        ordered dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param image: The image to apply the
+        ordered dithering to. Any PIL mode is accepted and converted
+        to RGB.
+    :param palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
-    :param int order: The size of the Bayer matrix.
-    :return:  The Bayer matrix dithered PIL image of type "P"
+    :param order: The cluster-dot matrix to use: ``4`` or ``8`` (square
+        matrices) or ``(5, 3)`` (non-square: 5 columns and 3 rows).
+    :return:  The cluster-dot dithered PIL image of type "P"
         using the input palette.
 
     """
 
     cluster_dot_matrix = _CLUSTER_DOT_MATRICES.get(order)
     if cluster_dot_matrix is None:
-        raise NotImplementedError("Only order 4 and 8 is implemented as of yet.")
-    ni = np.array(image, "uint8")
-    thresholds = np.array(thresholds, "uint8")
+        raise NotImplementedError("Only orders 4, 8 and (5, 3) are implemented as of yet.")
+    n_rows, n_cols = cluster_dot_matrix.shape
+    # Compute in float and clip: uint8 arithmetic would wrap around.
+    ni = to_rgb_array(image, "float")
+    thresholds = np.array(thresholds, "float")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
-    xx %= order
-    yy %= order
+    xx %= n_cols
+    yy %= n_rows
     factor_threshold_matrix = (
-        np.expand_dims(cluster_dot_matrix[yy, xx], axis=2) * thresholds
+        np.expand_dims(cluster_dot_matrix[yy, xx] - 0.5, axis=2) * thresholds
     )
-    new_image = ni + factor_threshold_matrix
+    new_image = np.clip(ni + factor_threshold_matrix, 0, 255)
     return palette.create_PIL_png_from_rgb_array(new_image)

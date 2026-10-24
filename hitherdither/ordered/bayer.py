@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-bayer_dithering
------------
-
-:copyright: 2016-09-09 by hbldh <henrik.blidh@nedomkull.com>
+Bayer matrix ordered dithering.
 
 """
 
@@ -14,6 +11,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
+
+from hitherdither.utils import to_rgb_array
 
 
 def B(n, transposed=False):
@@ -52,14 +51,14 @@ def I(n, transposed=False):
     else:
         smaller_I = I(n >> 1, transposed)
         if transposed:
-            return np.bmat(
+            return np.block(
                 [
                     [4 * smaller_I, 4 * smaller_I + 3],
                     [4 * smaller_I + 2, 4 * smaller_I + 1],
                 ]
             )
         else:
-            return np.bmat(
+            return np.block(
                 [
                     [4 * smaller_I, 4 * smaller_I + 2],
                     [4 * smaller_I + 3, 4 * smaller_I + 1],
@@ -70,9 +69,10 @@ def I(n, transposed=False):
 def bayer_dithering(image, palette, thresholds, order=8):
     """Render the image using the ordered Bayer matrix dithering pattern.
 
-    :param :class:`PIL.Image` image: The image to apply
-        Bayer ordered dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param image: The image to apply
+        Bayer ordered dithering to. Any PIL mode is accepted and converted
+        to RGB.
+    :param palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
     :param int order: The size of the Bayer matrix.
     :return:  The Bayer matrix dithered PIL image of type "P"
@@ -80,11 +80,12 @@ def bayer_dithering(image, palette, thresholds, order=8):
 
     """
     bayer_matrix = B(order)
-    ni = np.array(image, "uint8")
-    thresholds = np.array(thresholds, "uint8")
+    # Compute in float and clip: uint8 arithmetic would wrap around.
+    ni = to_rgb_array(image, "float")
+    thresholds = np.array(thresholds, "float")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     xx %= order
     yy %= order
-    factor_threshold_matrix = np.expand_dims(bayer_matrix[yy, xx], axis=2) * thresholds
-    new_image = ni + factor_threshold_matrix
+    factor_threshold_matrix = np.expand_dims(bayer_matrix[yy, xx] - 0.5, axis=2) * thresholds
+    new_image = np.clip(ni + factor_threshold_matrix, 0, 255)
     return palette.create_PIL_png_from_rgb_array(new_image)

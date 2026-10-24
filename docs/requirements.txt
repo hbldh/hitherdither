@@ -1,0 +1,4 @@
+sphinx>=7
+sphinx-rtd-theme>=2
+numpy
+Pillow

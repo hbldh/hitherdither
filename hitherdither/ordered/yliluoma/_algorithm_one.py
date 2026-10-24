@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-algorithm_one
------------
-
-:copyright: 2016-09-12 by hbldh <henrik.blidh@nedomkull.com>
+Yliluoma's ordered dithering algorithm 1.
 
 """
 
@@ -15,13 +12,17 @@ from __future__ import unicode_literals
 
 import numpy as np
 
+from hitherdither.utils import to_rgb_array
+
 from ._utils import color_compare, CCIR_LUMINOSITY
 from ..bayer import I
 
 
 def _get_mixing_plan_matrix(palette, order=8):
     mixing_matrix = []
-    colours = {}
+    # One (i, j, ratio) plan per row of ``mixing_matrix``; looked up by index,
+    # since different plans can mix to the same RGB colour.
+    plans = []
     colour_component_distances = []
 
     nn = order * order
@@ -32,8 +33,7 @@ def _get_mixing_plan_matrix(palette, order=8):
                     break
                 # Determine the two component colors.
                 c_mix = _colour_combine(palette, i, j, ratio / nn)
-                hex_colour = palette.rgb2hex(*c_mix.tolist())
-                colours[hex_colour] = (i, j, ratio / nn)
+                plans.append((i, j, ratio / nn))
                 mixing_matrix.append(c_mix)
 
                 c1 = np.array(palette[i], "int")
@@ -48,10 +48,7 @@ def _get_mixing_plan_matrix(palette, order=8):
     mixing_matrix = np.array(mixing_matrix)
     colour_component_distances = np.array(colour_component_distances)
 
-    for c in mixing_matrix:
-        assert palette.rgb2hex(*c.tolist()) in colours
-
-    return mixing_matrix, colours, colour_component_distances
+    return mixing_matrix, plans, colour_component_distances
 
 
 def _colour_combine(palette, i, j, ratio):
@@ -76,10 +73,10 @@ def _improved_mixing_error_fcn(
     improvement is shown below. We might call this RGBL, for
     luminance-weighted RGB.
 
-    :param :class:`numpy.ndarray` colour: The colour to estimate error to.
-    :param :class:`numpy.ndarray` mixing_matrix: The rgb
+    :param colour: The colour to estimate error to.
+    :param mixing_matrix: The rgb
         values of mixed colours.
-    :param :class:`numpy.ndarray` colour_component_distances: The colour
+    :param colour_component_distances: The colour
         distance of the mixed colours.
     :return: :class:`numpy.ndarray`
 
@@ -102,21 +99,22 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
 
     N.B. tri-tone dithering is not implemented.
 
-    :param :class:`PIL.Image` image: The image to apply
-        Bayer ordered dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param image: The image to apply
+        Bayer ordered dithering to. Any PIL mode is accepted and converted
+        to RGB.
+    :param palette: The palette to use.
     :param int order: The Bayer matrix size to use.
     :return:  The dithered PIL image of type "P" using the input palette.
 
     """
-    bayer_matrix = I(order, transposed=True) / 64.0
-    ni = np.array(image, "uint8")
+    bayer_matrix = I(order, transposed=True) / float(order * order)
+    ni = to_rgb_array(image, "uint8")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
 
     # Prepare all precalculated mixed colours and their respective
-    mixing_matrix, colour_map, colour_component_distances = _get_mixing_plan_matrix(
-        palette
+    mixing_matrix, plans, colour_component_distances = _get_mixing_plan_matrix(
+        palette, order
     )
     mixing_matrix = np.array(mixing_matrix, "int")
     luma_mat = mixing_matrix.dot(CCIR_LUMINOSITY / 1000.0 / 255.0)
@@ -129,9 +127,7 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
                 ni[y, x, :], mixing_matrix, colour_component_distances, luma_mat
             )
         )
-        closest_mix_colour = mixing_matrix[min_index, :].tolist()
-        closest_mix_hexcolour = palette.rgb2hex(*closest_mix_colour)
-        plan = colour_map.get(closest_mix_hexcolour)
+        plan = plans[min_index]
         color_matrix[y, x] = plan[1] if (factor_matrix[y, x] < plan[-1]) else plan[0]
 
     return palette.create_PIL_png_from_closest_colour(color_matrix)

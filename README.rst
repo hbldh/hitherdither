@@ -17,22 +17,23 @@ a more managable palette object and several dithering algorithms:
     - Jarvis-Judice-Ninke
     - Stucki
     - Burkes
-    - Sierra3 
+    - Sierra3
     - Sierra2
     - Sierra-2-4A
-    - Stevenson-Arce
     - Atkinson
 * Standard ordered dithering
     - Bayer matrix
-    - Cluster dot matrix
+    - Cluster dot matrix (orders 4, 8 and ``(5, 3)``)
     - Arbitrary square threshold matrix (not implemented yet)
 * Yliluoma's ordered dithering (see [1]_)
-    - Algorithm 1 
+    - Algorithm 1
     - Algorithm 2 (not implemented yet)
     - Algorithm 3 (not implemented yet)
 
-The dithering algorithms are applicable for arbitrary palettes and for both
-RGB and greyscale images.
+The algorithms work with arbitrary palettes. Input images of any PIL mode
+(``L``, ``1``, ``RGBA``, ``P`` ...) are converted to RGB first, and the result is
+a ``P`` mode image using the given palette. Error diffusion is written in
+plain Python loops and is slow on large images; resize first.
 
 Installation
 ------------
@@ -75,6 +76,66 @@ using a predefined palette:
    img_dithered = hitherdither.ordered.yliluoma.yliluomas_1_ordered_dithering(
        img, palette, order=8)
 
+Greyscale and black-and-white images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Images of any PIL mode (``L``, ``1``, ``LA``, ``RGBA``, ``P``, ``CMYK``) and 2-D
+arrays are accepted by every algorithm; they are converted to RGB internally.
+Use a greyscale palette for a greyscale result:
+
+.. code:: python
+
+   from PIL import Image
+   import hitherdither
+   from hitherdither.palette import Palette
+
+   img = Image.open('photo.png').convert('L')
+   bw = Palette.create_greyscale(2)           # black and white
+   grey4 = Palette.create_greyscale(4)        # 0, 85, 170, 255
+   custom = Palette.from_greys([0, 96, 255])  # chosen grey levels
+   out = hitherdither.diffusion.error_diffusion_dithering(img, bw)
+
+.. note::
+   ``Palette([0, 255])`` is a list of *hex colour values* (black and blue),
+   not grey levels. Use ``Palette.from_greys`` for grey levels.
+
+Examples
+~~~~~~~~
+
+``examples/demo.py`` runs every algorithm on one image, prints runtime and a
+quality figure, and writes the results plus ``overview.png`` to
+``examples/output/``:
+
+.. code:: sh
+
+    python examples/demo.py                    # generated test picture
+    python examples/demo.py photo.jpg --colours 16 --size 256
+
+Typical output (128x89 px, 8-colour median cut palette). "blurred MAE" is the
+mean absolute difference to the original after a Gaussian blur, so lower means
+it looks closer to the original from a distance:
+
+====================  ========  ============
+algorithm             time (s)  blurred MAE
+====================  ========  ============
+no dithering          0.002     6.43
+Bayer 8x8             0.003     6.43
+Cluster dot 8x8       0.003     6.51
+Yliluoma 1            0.29      5.23
+Floyd-Steinberg       0.32      4.49
+Atkinson              0.34      4.83
+Jarvis-Judice-Ninke   0.41      4.87
+Stucki                0.40      4.79
+Burkes                0.37      4.55
+Sierra3               0.40      4.82
+Sierra2               0.35      4.50
+Sierra-2-4A           0.32      4.47
+====================  ========  ============
+
+Ordered dithering adds ``(matrix - 0.5) * thresholds`` to each pixel, so with
+small thresholds on a sparse palette it only changes pixels near palette
+boundaries. Increase ``thresholds`` for a stronger pattern.
+
 Tests
 ~~~~~
 
@@ -82,16 +143,11 @@ Tests can be run with `pytest <http://doc.pytest.org/en/latest/>`_:
 
 .. code:: sh
 
-    hbldh@devbox:~/Repos/hitherdither$ py.test tests
-    ============================= test session starts ==============================
-    platform linux -- Python 3.5.2, pytest-3.0.2, py-1.4.31, pluggy-0.3.1
-    rootdir: /home/hbldh/Repos/hitherdither, inifile: 
-    collected 13 items 
+    pip install -e . pytest
+    pytest tests
 
-    tests/test_bayer.py ...
-    tests/test_palette.py ..........
-
-    ========================== 13 passed in 0.11 seconds ===========================
+A few tests in ``tests/test_palette.py`` download example images and fail when
+the network or the image URLs are unavailable.
 
 References
 ----------

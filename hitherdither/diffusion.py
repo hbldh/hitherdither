@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-:mod:`diffusion`
-=======================
-
-.. moduleauthor:: hbldh <henrik.blidh@swedwise.com>
-Created on 2016-09-12, 11:34
+Error diffusion dithering.
 
 """
 
@@ -15,6 +11,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
+from PIL import Image
 
 _DIFFUSION_MAPS = {
     "floyd-steinberg": (
@@ -104,90 +101,117 @@ def error_diffusion_dithering(image, palette, method="floyd-steinberg", order=2)
         It is included more as a reference implementation than as a useful
         method.
 
-    Reference:
-        http://bisqwit.iki.fi/jutut/kuvat/ordered_dither/error_diffusion.txt
+    Reference: http://bisqwit.iki.fi/jutut/kuvat/ordered_dither/error_diffusion.txt
 
     Quantization error of *current* pixel is added to the pixels
     on the right and below according to the formulas below.
     This works nicely for most static pictures, but causes
     an avalanche of jittering artifacts if used in animation.
 
-    Floyd-Steinberg:
+    Floyd-Steinberg::
 
               *  7
            3  5  1      / 16
 
-    Jarvis-Judice-Ninke:
+    Jarvis-Judice-Ninke::
 
               *  7  5
         3  5  7  5  3
         1  3  5  3  1   / 48
 
-    Stucki:
+    Stucki::
 
               *  8  4
         2  4  8  4  2
         1  2  4  2  1   / 42
 
-    Burkes:
+    Burkes::
 
               *  8  4
         2  4  8  4  2   / 32
 
 
-    Sierra3:
+    Sierra3::
 
               *  5  3
         2  4  5  4  2
            2  3  2      / 32
 
-    Sierra2:
+    Sierra2::
 
               *  4  3
         1  2  3  2  1   / 16
 
-    Sierra-2-4A:
+    Sierra-2-4A::
 
               *  2
            1  1         / 4
 
-    Stevenson-Arce:
-
-                      *   .  32
-        12   .   26   .  30   .  16
-        .   12    .  26   .  12   .
-        5    .   12   .  12   .   5    / 200
-
-    Atkinson:
+    Atkinson::
 
               *   1   1    / 8
           1   1   1
               1
 
-    :param :class:`PIL.Image` image: The image to apply error
-        diffusion dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
-    :param str method: The error diffusion map to use.
-    :param int order: Metric parameter ``ord`` to send to
-        :method:`numpy.linalg.norm`.
+    :param image: The image to apply error
+        diffusion dithering to. Images that are not of mode ``RGB`` (e.g.
+        ``L``, ``1``, ``RGBA``, ``P``, ``CMYK``) are converted with
+        ``image.convert("RGB")`` first, so greyscale images are handled as
+        RGB images. 2-D numpy arrays are treated as greyscale.
+    :param palette: The palette to use.
+    :type palette: :class:`~hitherdither.palette.Palette`
+    :param method: The error diffusion map to use (case-insensitive).
+        One of: ``floyd-steinberg``, ``atkinson``, ``jarvis-judice-ninke``, ``stucki``, ``burkes``, ``sierra3``, ``sierra2``, ``sierra-2-4a``.
+    :param order: Metric parameter ``ord`` to send to
+        :func:`numpy.linalg.norm`.
     :return: The error diffusion dithered PIL image of type
         "P" using the input palette.
+    :raises ValueError: If ``method`` is not a known method.
 
     """
-    ni = np.array(image, "float")
+    try:
+        diff_map = _DIFFUSION_MAPS[method.lower()]
+    except (KeyError, AttributeError):
+        raise ValueError(
+            "Unknown error diffusion method {0!r}. Valid methods: {1}.".format(
+                method, ", ".join(sorted(_DIFFUSION_MAPS))
+            )
+        )
 
-    diff_map = _DIFFUSION_MAPS.get(method.lower())
+    if isinstance(image, Image.Image):
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        ni = np.array(image, "float")
+    else:
+        ni = np.array(image, "float")
+        if ni.ndim == 2:
+            ni = np.repeat(ni[:, :, np.newaxis], 3, axis=2)
+        elif ni.ndim == 3 and ni.shape[2] == 1:
+            ni = np.repeat(ni, 3, axis=2)
+        elif ni.ndim == 3 and ni.shape[2] == 4:
+            ni = ni[:, :, :3].copy()
 
-    for y in range(ni.shape[0]):
-        for x in range(ni.shape[1]):
-            old_pixel = ni[y, x]
-            old_pixel[old_pixel < 0.0] = 0.0
-            old_pixel[old_pixel > 255.0] = 255.0
+    height, width = ni.shape[:2]
+    # Diffused error is accumulated separately from the source pixels and
+    # rounded down to whole grey levels before it is added to a pixel (integer
+    # error diffusion, like Pillow's own implementation). With unrounded float
+    # errors, tiny residuals accumulate and break up flat regions, e.g. a solid
+    # 50% grey no longer dithers to a clean checkerboard (issue #10).
+    src = np.clip(ni, 0.0, 255.0)
+    err = np.zeros_like(ni)
+    out = np.empty_like(ni)
+    for y in range(height):
+        for x in range(width):
+            old_pixel = np.clip(
+                src[y, x] + np.floor(np.round(err[y, x], 9)), 0.0, 255.0
+            )
             new_pixel = palette.pixel_closest_colour(old_pixel, order)
             quantization_error = old_pixel - new_pixel
-            ni[y, x] = new_pixel
+            out[y, x] = new_pixel
             for dx, dy, diffusion_coefficient in diff_map:
                 xn, yn = x + dx, y + dy
-                if (0 <= xn < ni.shape[1]) and (0 <= yn < ni.shape[0]):
-                    ni[yn, xn] += quantization_error * diffusion_coefficient
-    return palette.create_PIL_png_from_rgb_array(np.array(ni, "uint8"))
+                if (0 <= xn < width) and (0 <= yn < height):
+                    err[yn, xn] += quantization_error * diffusion_coefficient
+    return palette.create_PIL_png_from_rgb_array(
+        np.rint(np.clip(out, 0.0, 255.0)).astype("uint8")
+    )
