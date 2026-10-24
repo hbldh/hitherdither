@@ -20,7 +20,6 @@ from PIL import Image
 
 from hitherdither import palette
 from hitherdither.exceptions import PaletteCouldNotBeCreatedError
-from hitherdither.data import scene, scene_bayer0, scene_undithered
 
 
 @pytest.mark.parametrize(
@@ -129,30 +128,15 @@ def test_create_jpg(test_jpeg):
     assert len([c for c in p]) == len(p)
 
 
-def test_create_bayer0():
-    n_colours = 16
-    p = palette.Palette(scene_bayer0())
-    if isinstance(n_colours, tuple):
-        # JPEG gets 80 colours in Python 2.7.9 and 3.4,
-        # 82 in Python 2.7.12 and 3.5, 3.6...
-        assert len(p) in n_colours
-        assert len([c for c in p]) in n_colours
-    else:
-        assert len(p) == n_colours
-        assert len([c for c in p]) == n_colours
-
-
-def test_create_undithered():
-    n_colours = 16
-    p = palette.Palette(scene_undithered())
-    if isinstance(n_colours, tuple):
-        # JPEG gets 80 colours in Python 2.7.9 and 3.4,
-        # 82 in Python 2.7.12 and 3.5, 3.6...
-        assert len(p) in n_colours
-        assert len([c for c in p]) in n_colours
-    else:
-        assert len(p) == n_colours
-        assert len([c for c in p]) == n_colours
+def test_create_from_16_colour_p_image():
+    cols = [(i * 16, 255 - i * 16, (i * 37) % 256) for i in range(16)]
+    index = np.arange(64, dtype="uint8").reshape(8, 8) % 16
+    im = Image.fromarray(index, "P")
+    im.putpalette([c for rgb in cols for c in rgb])
+    p = palette.Palette(im)
+    assert len(p) == 16
+    assert len([c for c in p]) == 16
+    assert {tuple(int(v) for v in c) for c in p} == set(cols)
 
 
 def test_create_fails_1(test_png):

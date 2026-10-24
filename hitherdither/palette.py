@@ -94,10 +94,11 @@ class Palette(object):
                     "Image of mode {0} has no PIL palette. "
                     "Make sure it is of mode P.".format(data.mode)
                 )
-            _colours = data.getcolors()
-            _n_colours = len(_colours)
-            _tmp = np.array(data.getpalette())[: 3 * _n_colours]
-            self.colours = _tmp.reshape((3, len(_tmp) // 3)).T
+            # Use the palette entries actually used by the image, in index order.
+            _used = sorted(index for _, index in data.getcolors())
+            _full = np.array(data.getpalette(), "uint8")
+            _full = _full[: len(_full) // 3 * 3].reshape((-1, 3))
+            self.colours = _full[_used]
             self.hex = self._colours_to_hex(self.colours)
         elif isinstance(data, (list, tuple)):
             if isinstance(data[0], string_type):
