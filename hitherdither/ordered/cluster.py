@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-cluster
--------
-
-:copyright: 2016-09-09 by hbldh <henrik.blidh@nedomkull.com>
+Cluster dot ordered dithering.
 
 """
 
@@ -14,6 +11,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 import numpy as np
+
+from hitherdither.utils import to_rgb_array
 
 _CLUSTER_DOT_MATRICES = {
     4: np.array([[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]], "float")
@@ -42,9 +41,10 @@ def cluster_dot_dithering(image, palette, thresholds, order=4):
 
     Reference: http://caca.zoy.org/study/part2.html
 
-    :param :class:`PIL.Image` image: The image to apply the
-        ordered dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param image: The image to apply the
+        ordered dithering to. Any PIL mode is accepted and converted
+        to RGB.
+    :param palette: The palette to use.
     :param thresholds: Thresholds to apply dithering at.
     :param order: The cluster-dot matrix to use: ``4`` or ``8`` (square
         matrices) or ``(5, 3)`` (non-square: 5 columns and 3 rows).
@@ -58,7 +58,7 @@ def cluster_dot_dithering(image, palette, thresholds, order=4):
         raise NotImplementedError("Only orders 4, 8 and (5, 3) are implemented as of yet.")
     n_rows, n_cols = cluster_dot_matrix.shape
     # Compute in float and clip: uint8 arithmetic would wrap around.
-    ni = np.array(image, "float")
+    ni = to_rgb_array(image, "float")
     thresholds = np.array(thresholds, "float")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     xx %= n_cols

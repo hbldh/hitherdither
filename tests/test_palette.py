@@ -116,29 +116,17 @@ def test_create(input_data, n_colours):
 
 
 def test_create_png(test_png):
-    n_colours = 104
-    p = palette.Palette(test_png.convert("P"))
-    if isinstance(n_colours, tuple):
-        # JPEG gets 80 colours in Python 2.7.9 and 3.4,
-        # 82 in Python 2.7.12 and 3.5, 3.6...
-        assert len(p) in n_colours
-        assert len([c for c in p]) in n_colours
-    else:
-        assert len(p) == n_colours
-        assert len([c for c in p]) == n_colours
+    converted = test_png.convert("P")
+    p = palette.Palette(converted)
+    assert len(p) == len(converted.getcolors())
+    assert len([c for c in p]) == len(p)
 
 
 def test_create_jpg(test_jpeg):
-    n_colours = (80, 82)
-    p = palette.Palette(test_jpeg.convert("P"))
-    if isinstance(n_colours, tuple):
-        # JPEG gets 80 colours in Python 2.7.9 and 3.4,
-        # 82 in Python 2.7.12 and 3.5, 3.6...
-        assert len(p) in n_colours
-        assert len([c for c in p]) in n_colours
-    else:
-        assert len(p) == n_colours
-        assert len([c for c in p]) == n_colours
+    converted = test_jpeg.convert("P")
+    p = palette.Palette(converted)
+    assert len(p) == len(converted.getcolors())
+    assert len([c for c in p]) == len(p)
 
 
 def test_create_bayer0():
@@ -154,7 +142,7 @@ def test_create_bayer0():
         assert len([c for c in p]) == n_colours
 
 
-def test_create_bayer0():
+def test_create_undithered():
     n_colours = 16
     p = palette.Palette(scene_undithered())
     if isinstance(n_colours, tuple):
@@ -182,9 +170,9 @@ def test_create_fails_3(test_jpeg):
         p = palette.Palette(test_jpeg.convert("L"))
 
 
-def test_create_fails_4(test_jpeg):
+def test_create_fails_4(test_png):
     with pytest.raises(PaletteCouldNotBeCreatedError):
-        p = palette.Palette(scene())
+        p = palette.Palette(test_png.convert("RGBA"))
 
 
 def test_median_cut_flat_white():

@@ -62,17 +62,27 @@ def test_invalid_method(method):
     assert "floyd-steinberg" in str(e.value)
 
 
-def test_grey128_checkerboard_matches_pil():
-    """Issue #10."""
-    im = Image.new("RGB", (16, 16), (128, 128, 128))
+@pytest.mark.parametrize("size", [8, 16, 33, 64])
+def test_grey128_checkerboard_matches_pil(size):
+    """Issue #10: solid 50% grey must dither to a uniform checkerboard."""
+    im = Image.new("RGB", (size, size), (128, 128, 128))
     ours = _bw_array(error_diffusion_dithering(im, BW))
     pil = _pil_bw(im)
-    # Uniform checkerboard: every pixel differs from its right neighbour.
+    # Uniform checkerboard: every pixel differs from its neighbours.
     assert np.all(ours[:, 1:] != ours[:, :-1])
     assert np.all(ours[1:, :] != ours[:-1, :])
-    # Same checkerboard as PIL, up to phase.
+    # Same checkerboard as PIL, up to phase (we start with white, PIL black).
     assert _pct_diff(ours, pil) in (0.0, 100.0)
-    assert ours.sum() == 128
+    assert ours.sum() == (size * size + 1) // 2
+
+
+def test_error_diffusion_deterministic_and_keeps_mean():
+    g = _gradient(32, 8)
+    a = _bw_array(error_diffusion_dithering(g, BW))
+    b = _bw_array(error_diffusion_dithering(g, BW))
+    assert np.array_equal(a, b)
+    # Average brightness is preserved to within a couple of grey levels.
+    assert abs(a.mean() * 255 - np.array(g.convert("L")).mean()) < 8
 
 
 @pytest.mark.parametrize("mode", ["L", "1", "RGBA", "P", "CMYK"])

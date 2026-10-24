@@ -78,6 +78,29 @@ using a predefined palette:
    img_dithered = hitherdither.ordered.yliluoma.yliluomas_1_ordered_dithering(
        img, palette, order=8)
 
+Greyscale and black-and-white images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Images of any PIL mode (``L``, ``1``, ``LA``, ``RGBA``, ``P``, ``CMYK``) and 2-D
+arrays are accepted by every algorithm; they are converted to RGB internally.
+Use a greyscale palette for a greyscale result:
+
+.. code:: python
+
+   from PIL import Image
+   import hitherdither
+   from hitherdither.palette import Palette
+
+   img = Image.open('photo.png').convert('L')
+   bw = Palette.create_greyscale(2)           # black and white
+   grey4 = Palette.create_greyscale(4)        # 0, 85, 170, 255
+   custom = Palette.from_greys([0, 96, 255])  # chosen grey levels
+   out = hitherdither.diffusion.error_diffusion_dithering(img, bw)
+
+.. note::
+   ``Palette([0, 255])`` is a list of *hex colour values* (black and blue),
+   not grey levels. Use ``Palette.from_greys`` for grey levels.
+
 Examples
 ~~~~~~~~
 

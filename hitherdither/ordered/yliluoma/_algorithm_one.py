@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-algorithm_one
------------
-
-:copyright: 2016-09-12 by hbldh <henrik.blidh@nedomkull.com>
+Yliluoma's ordered dithering algorithm 1.
 
 """
 
@@ -14,6 +11,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import numpy as np
+
+from hitherdither.utils import to_rgb_array
 
 from ._utils import color_compare, CCIR_LUMINOSITY
 from ..bayer import I
@@ -74,10 +73,10 @@ def _improved_mixing_error_fcn(
     improvement is shown below. We might call this RGBL, for
     luminance-weighted RGB.
 
-    :param :class:`numpy.ndarray` colour: The colour to estimate error to.
-    :param :class:`numpy.ndarray` mixing_matrix: The rgb
+    :param colour: The colour to estimate error to.
+    :param mixing_matrix: The rgb
         values of mixed colours.
-    :param :class:`numpy.ndarray` colour_component_distances: The colour
+    :param colour_component_distances: The colour
         distance of the mixed colours.
     :return: :class:`numpy.ndarray`
 
@@ -100,15 +99,16 @@ def yliluomas_1_ordered_dithering(image, palette, order=8):
 
     N.B. tri-tone dithering is not implemented.
 
-    :param :class:`PIL.Image` image: The image to apply
-        Bayer ordered dithering to.
-    :param :class:`~hitherdither.colour.Palette` palette: The palette to use.
+    :param image: The image to apply
+        Bayer ordered dithering to. Any PIL mode is accepted and converted
+        to RGB.
+    :param palette: The palette to use.
     :param int order: The Bayer matrix size to use.
     :return:  The dithered PIL image of type "P" using the input palette.
 
     """
     bayer_matrix = I(order, transposed=True) / float(order * order)
-    ni = np.array(image, "uint8")
+    ni = to_rgb_array(image, "uint8")
     xx, yy = np.meshgrid(range(ni.shape[1]), range(ni.shape[0]))
     factor_matrix = bayer_matrix[yy % order, xx % order]
 

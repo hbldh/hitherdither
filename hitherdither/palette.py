@@ -68,6 +68,13 @@ class Palette(object):
     - list of hex values
     - list of RGB tuples
 
+    .. warning::
+
+        A list of plain integers is interpreted as *hex colour values*, not
+        as grey levels: ``Palette([0, 255])`` is black and **blue**
+        (``0x0000FF``). For greyscale palettes use :meth:`create_greyscale`
+        or :meth:`from_greys`.
+
     """
 
     def __init__(self, data):
@@ -152,6 +159,36 @@ class Palette(object):
         return self.colours[
             np.argmin(self.pixel_distance(pixel, order=order)), :
         ].copy()
+
+    @classmethod
+    def from_greys(cls, levels):
+        """Create a greyscale palette from grey levels.
+
+        ``Palette.from_greys([0, 255])`` is a black and white palette.
+
+        :param levels: Iterable of grey levels, integers in ``[0, 255]``.
+        :return: A :class:`Palette` with one ``(g, g, g)`` colour per level.
+        """
+        levels = [int(v) for v in levels]
+        if len(levels) == 0:
+            raise ValueError("At least one grey level is required.")
+        if any(v < 0 or v > 255 for v in levels):
+            raise ValueError("Grey levels must be in the range [0, 255].")
+        return cls(np.array([[v, v, v] for v in levels], "uint8"))
+
+    @classmethod
+    def create_greyscale(cls, n=2):
+        """Create a palette of ``n`` evenly spaced greys from black to white.
+
+        ``create_greyscale(2)`` is black and white, ``create_greyscale(4)``
+        gives 0, 85, 170 and 255.
+
+        :param int n: Number of grey levels, at least 2 (at most 256).
+        """
+        if int(n) != n or n < 2 or n > 256:
+            raise ValueError("n must be an integer in the range [2, 256].")
+        n = int(n)
+        return cls.from_greys(np.round(np.linspace(0, 255, n)).astype(int))
 
     @classmethod
     def create_by_kmeans(cls, image):
@@ -243,7 +280,7 @@ class Palette(object):
 
         Reference: http://stackoverflow.com/a/29438149
 
-        :param :class:`numpy.ndarray` cc: A ``[M x N]`` array with integer
+        :param cc: A ``[M x N]`` array with integer
             values representing palette colour indices to build image from.
         :return: A :class:`PIL.Image.Image` image of mode ``P``.
 
@@ -259,7 +296,7 @@ class Palette(object):
 
         Reference: http://stackoverflow.com/a/29438149
 
-        :param :class:`numpy.ndarray` img_array: A ``[M x N x 3]`` uint8
+        :param img_array: A ``[M x N x 3]`` uint8
             array representing RGB colours.
         :return: A :class:`PIL.Image.Image` image of mode ``P`` with colours
             available in this palette.
